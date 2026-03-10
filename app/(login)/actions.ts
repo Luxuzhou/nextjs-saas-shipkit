@@ -25,6 +25,10 @@ import {
   validatedAction,
   validatedActionWithUser
 } from '@/lib/auth/middleware';
+import { sendEmail } from '@/lib/email/send';
+import { WelcomeEmail } from '@/lib/email/templates/WelcomeEmail';
+import { InvitationEmail } from '@/lib/email/templates/InvitationEmail';
+import * as React from 'react';
 
 async function logActivity(
   teamId: number | null | undefined,
@@ -211,6 +215,16 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     logActivity(teamId, createdUser.id, ActivityType.SIGN_UP),
     setSession(createdUser)
   ]);
+
+  // Send welcome email (fire-and-forget)
+  sendEmail({
+    to: email,
+    subject: 'Welcome to SaaS Starter!',
+    react: React.createElement(WelcomeEmail, {
+      userEmail: email,
+      userName: createdUser.name ?? undefined
+    })
+  }).catch(console.error);
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
@@ -437,13 +451,16 @@ export const inviteTeamMember = validatedActionWithUser(
     }
 
     // Create a new invitation
-    await db.insert(invitations).values({
-      teamId: userWithTeam.teamId,
-      email,
-      role,
-      invitedBy: user.id,
-      status: 'pending'
-    });
+    const [newInvitation] = await db
+      .insert(invitations)
+      .values({
+        teamId: userWithTeam.teamId,
+        email,
+        role,
+        invitedBy: user.id,
+        status: 'pending'
+      })
+      .returning();
 
     await logActivity(
       userWithTeam.teamId,
@@ -451,8 +468,27 @@ export const inviteTeamMember = validatedActionWithUser(
       ActivityType.INVITE_TEAM_MEMBER
     );
 
-    // TODO: Send invitation email and include ?inviteId={id} to sign-up URL
-    // await sendInvitationEmail(email, userWithTeam.team.name, role)
+    // Send invitation email (fire-and-forget)
+    if (newInvitation) {
+      const [teamRecord] = await db
+        .select({ name: teams.name })
+        .from(teams)
+        .where(eq(teams.id, userWithTeam.teamId))
+        .limit(1);
+
+      const teamName = teamRecord?.name ?? 'the team';
+
+      sendEmail({
+        to: email,
+        subject: `You've been invited to join ${teamName}`,
+        react: React.createElement(InvitationEmail, {
+          invitedEmail: email,
+          teamName,
+          role,
+          inviteId: newInvitation.id
+        })
+      }).catch(console.error);
+    }
 
     return { success: 'Invitation sent successfully' };
   }
