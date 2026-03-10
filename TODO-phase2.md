@@ -607,5 +607,261 @@
 - [ ] 修复所有 500 错误
 - [ ] 运行 npx playwright test --reporter=list（记录结果，允许部分失败）
 - [ ] git commit "feat: phase 2+3 integration complete - all modules verified"
-- [ ] echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark phase 2+3 complete'
+- [ ] 不要创建 COMPLETE 文件，继续 Phase 20
+
+---
+
+## Phase 20: 第四轮初始化（Lead 负责）
+
+### 20.1 安装新依赖
+- [ ] pnpm add next-auth @auth/drizzle-adapter arctic
+- [ ] pnpm add swagger-ui-react @types/swagger-ui-react
+- [ ] pnpm add recharts（如尚未安装则跳过）
+- [ ] pnpm add gray-matter next-mdx-remote rehype-highlight rehype-slug remark-gfm
+- [ ] pnpm add framer-motion
+
+### 20.2 创建目录结构
+- [ ] mkdir -p lib/oauth/providers
+- [ ] mkdir -p lib/api-gateway
+- [ ] mkdir -p lib/analytics
+- [ ] mkdir -p lib/feature-flags
+- [ ] mkdir -p app/(dashboard)/dashboard/analytics
+- [ ] mkdir -p app/(dashboard)/dashboard/feature-flags
+- [ ] mkdir -p app/api/v1
+- [ ] mkdir -p app/api/api-keys
+- [ ] mkdir -p app/api/analytics
+- [ ] mkdir -p app/api/feature-flags
+- [ ] mkdir -p app/docs
+- [ ] mkdir -p content/docs
+- [ ] mkdir -p components/landing
+- [ ] mkdir -p lib/db（已存在）
+
+### 20.3 提交
+- [ ] git commit "chore: phase 4 setup - OAuth, API Gateway, Analytics, Feature Flags, Docs, Landing"
+
+---
+
+## Phase 21: OAuth/SSO 社交登录 + 2FA（teammate-oauth，Opus）
+
+### 21.1 OAuth Provider 抽象层
+- [ ] 创建 lib/oauth/types.ts：OAuthProvider 接口（authorize, callback, getProfile）
+- [ ] 创建 lib/oauth/providers/google.ts：Google OAuth provider（使用 arctic 库）
+- [ ] 创建 lib/oauth/providers/github.ts：GitHub OAuth provider（使用 arctic 库）
+- [ ] 创建 lib/oauth/factory.ts：根据 provider 名称返回对应实例
+- [ ] 环境变量降级：GOOGLE_CLIENT_ID / GITHUB_CLIENT_ID 为空时，对应 provider 不可用但不报错
+
+### 21.2 OAuth API 路由
+- [ ] 创建 app/api/auth/oauth/[provider]/route.ts：发起 OAuth 重定向
+- [ ] 创建 app/api/auth/oauth/[provider]/callback/route.ts：处理回调，创建/关联用户
+- [ ] 处理新用户自动注册（创建 user + 默认 team）
+- [ ] 处理已有用户关联（同 email 自动关联）
+
+### 21.3 TOTP 二因素认证
+- [ ] 创建 lib/db/oauth-schema.ts：twoFactorSecrets 表（userId, secret, enabled, backupCodes）、oauthAccounts 表（userId, provider, providerAccountId）
+- [ ] 创建 lib/oauth/totp.ts：generateSecret, generateQRCode, verifyToken
+- [ ] 创建 app/api/auth/2fa/setup/route.ts：生成 secret + QR code
+- [ ] 创建 app/api/auth/2fa/verify/route.ts：验证 TOTP token
+- [ ] 创建 app/api/auth/2fa/disable/route.ts：关闭 2FA
+
+### 21.4 UI 页面
+- [ ] 创建 app/(dashboard)/dashboard/security/page.tsx：安全设置页面（关联社交账号 + 2FA 开关）
+- [ ] 修改登录页面添加"使用 Google/GitHub 登录"按钮（在 app/(login)/login.tsx 中添加，不改动已有逻辑）
+
+### 21.5 验证
+- [ ] npx tsc --noEmit
+- [ ] pnpm build
+- [ ] Smoke test：端口 3011，验证 /dashboard/security 不返回 500
+
+---
+
+## Phase 22: Public API Gateway（teammate-api-gateway，Opus）
+
+### 22.1 API Key 管理
+- [ ] 创建 lib/db/api-gateway-schema.ts：apiKeys 表（id, teamId, name, keyHash, prefix, permissions, rateLimit, lastUsedAt, expiresAt）、apiRequestLogs 表（id, apiKeyId, method, path, statusCode, latencyMs, timestamp）
+- [ ] 创建 lib/api-gateway/key-manager.ts：generateApiKey, hashKey, validateKey, revokeKey
+- [ ] 创建 lib/api-gateway/rate-limiter.ts：基于 sliding window 的 API 限流（内存存储）
+- [ ] 创建 lib/api-gateway/middleware.ts：API 认证中间件（从 header 提取 key → 验证 → 注入 team context）
+
+### 22.2 Versioned API 路由
+- [ ] 创建 app/api/v1/teams/route.ts：GET 获取团队信息
+- [ ] 创建 app/api/v1/members/route.ts：GET 列出成员，POST 邀请成员
+- [ ] 创建 app/api/v1/activity/route.ts：GET 获取活动日志
+- [ ] 创建 app/api/v1/usage/route.ts：GET 获取 AI 用量统计
+- [ ] 所有 v1 路由使用统一的 API 中间件（认证 + 限流 + 日志）
+
+### 22.3 OpenAPI 文档
+- [ ] 创建 lib/api-gateway/openapi-spec.ts：OpenAPI 3.0 JSON spec（描述所有 v1 端点）
+- [ ] 创建 app/api/v1/docs/route.ts：返回 OpenAPI JSON
+- [ ] 创建 app/(dashboard)/dashboard/api-keys/page.tsx：API Key 管理页面（创建/查看/吊销 key）
+- [ ] 创建 app/(dashboard)/dashboard/api-docs/page.tsx：嵌入 Swagger UI 展示 API 文档
+
+### 22.4 验证
+- [ ] npx tsc --noEmit
+- [ ] pnpm build
+- [ ] Smoke test：端口 3012，验证 /dashboard/api-keys 和 /api/v1/docs 不返回 500
+
+---
+
+## Phase 23: Analytics 数据分析平台（teammate-analytics，Sonnet）
+
+### 23.1 事件追踪
+- [ ] 创建 lib/db/analytics-schema.ts：analyticsEvents 表（id, teamId, userId, eventName, eventData, sessionId, pageUrl, referrer, userAgent, timestamp）、funnels 表（id, teamId, name, steps, createdAt）
+- [ ] 创建 lib/analytics/tracker.ts：trackEvent（server-side）, batchInsert
+- [ ] 创建 lib/analytics/client-tracker.ts：前端埋点 hook useTrackEvent
+- [ ] 创建 app/api/analytics/track/route.ts：接收客户端埋点事件
+
+### 23.2 数据聚合查询
+- [ ] 创建 lib/analytics/queries.ts：
+  - getEventsByDateRange：按日期范围查询事件
+  - getTopEvents：热门事件排行
+  - getPageViews：页面浏览量统计
+  - getUserRetention：用户留存率（Day 1/7/30）
+  - getFunnelConversion：漏斗转化率计算
+
+### 23.3 Dashboard 页面
+- [ ] 创建 app/(dashboard)/dashboard/analytics/page.tsx：分析总览
+  - 实时事件流（最近 24h 事件时间线）
+  - 页面浏览量折线图（recharts）
+  - 热门事件 Top 10 柱状图
+  - 用户留存曲线
+- [ ] 创建 app/(dashboard)/dashboard/analytics/funnels/page.tsx：漏斗分析
+  - 创建/编辑漏斗（定义步骤）
+  - 漏斗可视化（步骤间转化率）
+
+### 23.4 验证
+- [ ] npx tsc --noEmit
+- [ ] pnpm build
+- [ ] Smoke test：端口 3013，验证 /dashboard/analytics 不返回 500
+
+---
+
+## Phase 24: Feature Flags 功能开关系统（teammate-feature-flags，Sonnet）
+
+### 24.1 Flag 引擎
+- [ ] 创建 lib/db/feature-flags-schema.ts：featureFlags 表（id, key, name, description, type: boolean|percentage|userList|teamList, enabled, rolloutPercentage, targetUserIds, targetTeamIds, createdAt, updatedAt）
+- [ ] 创建 lib/feature-flags/engine.ts：
+  - evaluateFlag(flagKey, context: {userId, teamId})：返回 boolean
+  - 支持 4 种策略：全局开关、百分比灰度、指定用户、指定团队
+  - 内存缓存 flags（TTL 60s），避免每次查 DB
+- [ ] 创建 lib/feature-flags/react.ts：
+  - FeatureFlagProvider（React Context）
+  - useFeatureFlag(key) hook
+  - FeatureGate 组件（条件渲染）
+
+### 24.2 管理 API
+- [ ] 创建 app/api/feature-flags/route.ts：GET 列出所有 flags，POST 创建 flag
+- [ ] 创建 app/api/feature-flags/[id]/route.ts：PUT 更新 flag，DELETE 删除 flag
+- [ ] 创建 app/api/feature-flags/evaluate/route.ts：POST 批量评估 flags（供前端 Provider 调用）
+
+### 24.3 管理页面
+- [ ] 创建 app/(dashboard)/dashboard/feature-flags/page.tsx：Flag 管理列表
+  - 创建新 flag（名称、key、类型、初始状态）
+  - 每个 flag 有 toggle 开关
+  - 编辑 flag 详情（百分比滑块、用户/团队选择器）
+  - 删除 flag（带确认弹窗）
+
+### 24.4 验证
+- [ ] npx tsc --noEmit
+- [ ] pnpm build
+- [ ] Smoke test：端口 3014，验证 /dashboard/feature-flags 不返回 500
+
+---
+
+## Phase 25: Documentation 文档站（teammate-docs，Sonnet）
+
+### 25.1 MDX 基础设施
+- [ ] 创建 lib/docs/mdx.ts：MDX 编译配置（gray-matter 解析 frontmatter，next-mdx-remote 渲染）
+- [ ] 创建 lib/docs/sidebar.ts：从 content/docs/ 目录结构自动生成侧边栏导航树
+- [ ] 创建 lib/docs/search.ts：简单的全文搜索（遍历所有 MDX 文件的 frontmatter + 内容）
+
+### 25.2 文档内容
+- [ ] 创建 content/docs/getting-started.mdx：快速开始指南
+- [ ] 创建 content/docs/authentication.mdx：认证系统说明
+- [ ] 创建 content/docs/billing.mdx：计费系统说明
+- [ ] 创建 content/docs/api-reference.mdx：API 参考（链接到 Swagger UI）
+- [ ] 创建 content/docs/deployment.mdx：部署指南（Vercel + Docker）
+- [ ] 每个 MDX 文件包含 frontmatter：title, description, order
+
+### 25.3 文档页面
+- [ ] 创建 app/docs/layout.tsx：文档布局（左侧边栏导航 + 右侧内容 + 目录 TOC）
+- [ ] 创建 app/docs/[[...slug]]/page.tsx：动态路由渲染 MDX
+- [ ] 创建 components/docs/Sidebar.tsx：侧边栏组件（支持折叠）
+- [ ] 创建 components/docs/TOC.tsx：页内目录（从 headings 提取）
+- [ ] 创建 components/docs/SearchDialog.tsx：搜索弹窗（Ctrl+K 触发）
+- [ ] 创建 components/docs/CodeBlock.tsx：代码高亮组件（rehype-highlight）
+
+### 25.4 验证
+- [ ] npx tsc --noEmit
+- [ ] pnpm build
+- [ ] Smoke test：端口 3015，验证 /docs 和 /docs/getting-started 不返回 500
+
+---
+
+## Phase 26: Landing Page 重新设计（teammate-landing，Sonnet）
+
+### 26.1 组件创建
+- [ ] 创建 components/landing/Hero.tsx：首屏英雄区（大标题 + 副标题 + CTA 按钮 + 产品截图/插图）
+- [ ] 创建 components/landing/Features.tsx：功能展示网格（6 个功能卡片，icon + 标题 + 描述）
+- [ ] 创建 components/landing/Testimonials.tsx：用户评价轮播（3-5 条 mock 评价）
+- [ ] 创建 components/landing/FAQ.tsx：常见问题折叠面板（Accordion 组件）
+- [ ] 创建 components/landing/CTA.tsx：底部行动号召区（深色背景 + 标题 + 按钮）
+- [ ] 创建 components/landing/Stats.tsx：数据统计展示（3-4 个关键指标动画计数）
+- [ ] 所有组件使用 framer-motion 做入场动画（scroll-triggered）
+
+### 26.2 页面整合
+- [ ] 修改 app/(marketing)/page.tsx（或新建），整合所有 landing 组件
+- [ ] 确保响应式布局（mobile-first）
+- [ ] 深色/浅色模式适配
+
+### 26.3 验证
+- [ ] npx tsc --noEmit
+- [ ] pnpm build
+- [ ] Smoke test：端口 3016，验证首页 / 不返回 500
+
+---
+
+## Phase 27: 最终集成验证（Lead 负责）
+
+### 27.1 Schema 合并
+- [ ] 将 oauth-schema.ts、api-gateway-schema.ts、analytics-schema.ts、feature-flags-schema.ts 中的表定义合并到 lib/db/schema.ts
+- [ ] 运行 pnpm db:generate && pnpm db:migrate
+
+### 27.2 导航更新
+- [ ] Dashboard 侧边栏添加：Analytics、Feature Flags、API Keys、AI Assistant、Security 导航项
+- [ ] 确认已有导航项（Billing / Notifications / Integrations / Usage）正常
+- [ ] 顶部导航或 Footer 添加 Docs 链接
+
+### 27.3 Landing Page 集成
+- [ ] 确认首页使用新的 Landing Page 组件
+- [ ] 确认 Pricing 页面仍然正常
+
+### 27.4 全局验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] 全量 Smoke Test（端口 3010），验证所有路由不返回 500：
+  - http://localhost:3010（首页 - 新 Landing Page）
+  - http://localhost:3010/sign-in（登录页 - 含社交登录按钮）
+  - http://localhost:3010/pricing（定价页）
+  - http://localhost:3010/docs（文档站）
+  - http://localhost:3010/docs/getting-started（文档内页）
+  - http://localhost:3010/admin（管理后台）
+  - http://localhost:3010/admin/roles（角色管理）
+  - http://localhost:3010/admin/compliance（合规管理）
+  - http://localhost:3010/dashboard/billing（计费页面）
+  - http://localhost:3010/dashboard/notifications（通知中心）
+  - http://localhost:3010/dashboard/integrations（集成市场）
+  - http://localhost:3010/dashboard/usage（用量页面）
+  - http://localhost:3010/dashboard/ai-assistant（AI 助手）
+  - http://localhost:3010/dashboard/analytics（数据分析）
+  - http://localhost:3010/dashboard/feature-flags（功能开关）
+  - http://localhost:3010/dashboard/api-keys（API Key 管理）
+  - http://localhost:3010/dashboard/security（安全设置）
+  - http://localhost:3010/dashboard/api-docs（API 文档）
+  - http://localhost:3010/forgot-password（忘记密码）
+  - http://localhost:3010/api/realtime/presence（实时状态 API）
+  - http://localhost:3010/api/v1/docs（OpenAPI spec）
+- [ ] 修复所有 500 错误
+- [ ] 运行 npx playwright test --reporter=list（记录结果，允许部分失败）
+- [ ] git commit "feat: all 15 modules integration complete - full SaaS platform verified"
+- [ ] echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark all phases complete'
 - [ ] 输出 COMPLETE

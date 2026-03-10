@@ -208,7 +208,128 @@
 6. 修复所有 500 错误
 7. 运行 npx playwright test --reporter=list（记录结果，允许部分失败）
 8. git commit 'feat: phase 2+3 integration complete - all modules verified'
-9. echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark phase 2+3 complete'
-10. 输出 COMPLETE
+9. 不要创建 COMPLETE 文件，继续 Phase 20
+
+## Phase 20: 你继续做（第四轮初始化）
+1. 安装新依赖：pnpm add next-auth @auth/drizzle-adapter arctic swagger-ui-react @types/swagger-ui-react gray-matter next-mdx-remote rehype-highlight rehype-slug remark-gfm framer-motion
+2. 创建 TODO-phase2.md 中 Phase 20 列出的目录结构
+3. git commit "chore: phase 4 setup - OAuth, API Gateway, Analytics, Feature Flags, Docs, Landing"
+4. 分配 6 个 teammate（Phase 21-26）
+
+### teammate-oauth（OAuth/SSO + 2FA）— 用 Opus 模型
+指令：执行 TODO-phase2.md 中的 Phase 21。你负责创建 OAuth 社交登录和 TOTP 二因素认证。
+关键原则：
+1. 使用 arctic 库实现 Google 和 GitHub OAuth（不要用 next-auth，直接用 arctic 更轻量）
+2. **禁止修改 lib/db/schema.ts**，新表写在 lib/db/oauth-schema.ts
+3. **禁止修改 app/(login)/actions.ts 中的已有逻辑**，只在文件末尾追加 OAuth 相关的 server actions
+4. OAuth 回调路由处理：新用户自动注册（创建 user + team），已有用户（同 email）自动关联
+5. TOTP 使用标准算法，QR code 用 data URL 返回（不依赖外部服务）
+6. **环境变量降级**：GOOGLE_CLIENT_ID / GITHUB_CLIENT_ID 为空时，对应的登录按钮显示但点击提示"未配置"
+7. 安全设置页面在 app/(dashboard)/dashboard/security/
+8. 不要自行 pnpm add
+9. 完成后运行 npx tsc --noEmit 和 pnpm build
+10. Smoke test：端口 3011，验证 /dashboard/security 不返回 500
+
+### teammate-api-gateway（Public API Gateway）— 用 Opus 模型
+指令：执行 TODO-phase2.md 中的 Phase 22。你负责创建公开 API 网关系统。
+关键原则：
+1. **禁止修改 lib/db/schema.ts**，新表写在 lib/db/api-gateway-schema.ts
+2. API Key 使用 crypto.randomBytes 生成，存储 SHA-256 hash，返回时只显示 prefix + 首次完整 key
+3. Rate limiter 用内存 sliding window，不需要 Redis
+4. 所有 /api/v1/ 路由通过统一中间件：验证 API key → 检查权限 → 限流 → 记录日志
+5. OpenAPI spec 用 TypeScript 对象手写（不要用 swagger 装饰器生成）
+6. Swagger UI 页面在 app/(dashboard)/dashboard/api-docs/
+7. API Key 管理页面在 app/(dashboard)/dashboard/api-keys/
+8. 不要自行 pnpm add
+9. 完成后运行 npx tsc --noEmit 和 pnpm build
+10. Smoke test：端口 3012，验证 /dashboard/api-keys 和 /api/v1/docs 不返回 500
+
+### teammate-analytics（Analytics 数据分析）— 用 Sonnet 模型
+指令：执行 TODO-phase2.md 中的 Phase 23。你负责创建自定义数据分析平台。
+关键原则：
+1. **禁止修改 lib/db/schema.ts**，新表写在 lib/db/analytics-schema.ts
+2. 事件追踪支持 server-side（lib 函数调用）和 client-side（API 端点接收）
+3. 聚合查询在数据库层面完成（不要全量拉到内存再算）
+4. 使用 recharts 画图表（折线图、柱状图、漏斗图）
+5. Dashboard 页面在 app/(dashboard)/dashboard/analytics/
+6. 漏斗分析子页面在 app/(dashboard)/dashboard/analytics/funnels/
+7. 不要自行 pnpm add
+8. 完成后运行 npx tsc --noEmit 和 pnpm build
+9. Smoke test：端口 3013，验证 /dashboard/analytics 不返回 500
+
+### teammate-feature-flags（Feature Flags 功能开关）— 用 Sonnet 模型
+指令：执行 TODO-phase2.md 中的 Phase 24。你负责创建功能开关系统。
+关键原则：
+1. **禁止修改 lib/db/schema.ts**，新表写在 lib/db/feature-flags-schema.ts
+2. Flag 引擎支持 4 种策略：全局 boolean、百分比灰度、指定用户列表、指定团队列表
+3. 内存缓存 flags（TTL 60 秒），减少数据库查询
+4. 提供 React Context Provider + useFeatureFlag hook + FeatureGate 组件
+5. 管理页面在 app/(dashboard)/dashboard/feature-flags/
+6. 不要自行 pnpm add
+7. 完成后运行 npx tsc --noEmit 和 pnpm build
+8. Smoke test：端口 3014，验证 /dashboard/feature-flags 不返回 500
+
+### teammate-docs（Documentation 文档站）— 用 Sonnet 模型
+指令：执行 TODO-phase2.md 中的 Phase 25。你负责创建 MDX 驱动的文档站。
+关键原则：
+1. 使用 gray-matter 解析 frontmatter，next-mdx-remote 渲染 MDX
+2. 文档内容放在 content/docs/ 目录下，每个 .mdx 文件有 title/description/order frontmatter
+3. 侧边栏从目录结构自动生成，不需要手动维护
+4. 搜索用简单的全文遍历（不需要搜索引擎）
+5. 代码高亮用 rehype-highlight
+6. 页面在 app/docs/ 目录下（注意不是 (dashboard) 路由组）
+7. 组件在 components/docs/
+8. 不要自行 pnpm add
+9. 完成后运行 npx tsc --noEmit 和 pnpm build
+10. Smoke test：端口 3015，验证 /docs 和 /docs/getting-started 不返回 500
+
+### teammate-landing（Landing Page 重新设计）— 用 Sonnet 模型
+指令：执行 TODO-phase2.md 中的 Phase 26。你负责重新设计首页 Landing Page。
+关键原则：
+1. 创建独立的 Landing 组件在 components/landing/，不修改已有组件
+2. 组件包括：Hero（英雄区）、Features（功能网格）、Testimonials（用户评价）、FAQ（折叠面板）、CTA（行动号召）、Stats（数据统计）
+3. 使用 framer-motion 做 scroll-triggered 入场动画
+4. 响应式布局（mobile-first），适配手机/平板/桌面
+5. **修改 app/(marketing)/page.tsx**，用新组件替换原有首页内容
+6. 保持原有的 Header/Footer 不变，只替换 page 内容
+7. 不要自行 pnpm add
+8. 完成后运行 npx tsc --noEmit 和 pnpm build
+9. Smoke test：端口 3016，验证首页 / 不返回 500
+
+## Phase 27: 最终集成（你负责）
+等所有 Phase 21-26 的 teammate 完成后：
+1. 合并 Schema：将 oauth-schema.ts、api-gateway-schema.ts、analytics-schema.ts、feature-flags-schema.ts 中的表定义合并到 lib/db/schema.ts，运行 pnpm db:generate && pnpm db:migrate
+2. Dashboard 侧边栏添加：Analytics、Feature Flags、API Keys、Security 导航项
+3. 顶部导航或 Footer 添加 Docs 链接
+4. 确认首页使用新 Landing Page
+5. 运行 npx tsc --noEmit
+6. 运行 pnpm build
+7. 全量 Smoke Test（端口 3010），验证所有路由不返回 500：
+   - http://localhost:3010（首页 - 新 Landing）
+   - http://localhost:3010/sign-in（登录页 - 含社交登录按钮）
+   - http://localhost:3010/pricing（定价页）
+   - http://localhost:3010/docs（文档站）
+   - http://localhost:3010/docs/getting-started（文档内页）
+   - http://localhost:3010/admin（管理后台）
+   - http://localhost:3010/admin/roles（角色管理）
+   - http://localhost:3010/admin/compliance（合规管理）
+   - http://localhost:3010/dashboard/billing（计费页面）
+   - http://localhost:3010/dashboard/notifications（通知中心）
+   - http://localhost:3010/dashboard/integrations（集成市场）
+   - http://localhost:3010/dashboard/usage（用量页面）
+   - http://localhost:3010/dashboard/ai-assistant（AI 助手）
+   - http://localhost:3010/dashboard/analytics（数据分析）
+   - http://localhost:3010/dashboard/feature-flags（功能开关）
+   - http://localhost:3010/dashboard/api-keys（API Key 管理）
+   - http://localhost:3010/dashboard/api-docs（API 文档）
+   - http://localhost:3010/dashboard/security（安全设置）
+   - http://localhost:3010/forgot-password（忘记密码）
+   - http://localhost:3010/api/realtime/presence（实时状态 API）
+   - http://localhost:3010/api/v1/docs（OpenAPI spec）
+8. 修复所有 500 错误
+9. 运行 npx playwright test --reporter=list（记录结果，允许部分失败）
+10. git commit "feat: all 15 modules integration complete - full SaaS platform verified"
+11. echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark all phases complete'
+12. 输出 COMPLETE
 
 现在开始：先检查进度，再决定从哪里开始执行。
