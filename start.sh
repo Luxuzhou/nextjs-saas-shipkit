@@ -1,12 +1,14 @@
 #!/bin/bash
 # SaaS Starter Enhanced - Agent Teams 过夜构建启动脚本
 # 使用方式：cd D:/Projects/saas-starter-enhanced && bash start.sh
+# 特性：Ralph Loop 自动重启 + Smoke Test 路由验证
 
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
 echo "=========================================="
 echo "  SaaS Starter Enhanced - Agent Teams"
 echo "  启动时间: $(date)"
+echo "  模式: Ralph Loop（自动重启直到完成）"
 echo "=========================================="
 echo ""
 
@@ -29,35 +31,97 @@ if [ ! -f .env ]; then
 fi
 
 echo "✓ .env 文件存在"
-echo "预计运行 4-6 小时"
-echo "完成标志：输出 COMPLETE"
+echo "完成标志：COMPLETE 文件出现在项目根目录"
 echo ""
+
+MAX_LOOPS=5
+LOOP_COUNT=0
+
+while [ $LOOP_COUNT -lt $MAX_LOOPS ]; do
+  LOOP_COUNT=$((LOOP_COUNT + 1))
+  echo ""
+  echo "=========================================="
+  echo "  第 ${LOOP_COUNT}/${MAX_LOOPS} 轮执行"
+  echo "  开始时间: $(date)"
+  echo "=========================================="
+  echo ""
+
+  # 检查是否已经完成（上一轮可能已成功）
+  if [ -f COMPLETE ]; then
+    echo "检测到 COMPLETE 文件，任务已完成！"
+    break
+  fi
 
 claude --dangerously-skip-permissions -p "
 你是技术负责人（Lead Agent），今晚要在已有的 Next.js SaaS Starter 基础上完成 5 个增强模块。
+
+## 首要步骤：检查进度
+1. 读取 CLAUDE.md 和 TODO.md
+2. 运行 git log --oneline -20 查看已有 commit
+3. 检查 TODO.md 中哪些 checkbox 已经打勾 [x]
+4. 如果是首次执行（没有增强相关 commit），从 Phase 0 开始
+5. 如果是断点续跑（有部分 commit），跳过已完成的步骤，从未完成处继续
+6. 如果所有 Phase 都已完成但 COMPLETE 文件不存在，直接跑 Phase 6 的验证步骤
 
 ## 你的核心原则
 1. 你自己只做 Phase 0（初始化）和 Phase 6（集成验证），不要自己写业务代码
 2. 所有业务开发委派给 teammate
 3. 如果某个 teammate 报错或卡住，帮它诊断并给出修复方案
 4. 所有 teammate 完成后才开始 Phase 6 集成
-5. 最终 pnpm build 必须成功才能输出 COMPLETE
+5. 最终 pnpm build 必须成功 + smoke test 通过才能输出 COMPLETE
+
+## Smoke Test 规范（重要）
+每个 teammate 完成 pnpm build 后，以及 Phase 6 集成完成后，必须执行 smoke test：
+\`\`\`bash
+# 启动 dev server（后台运行）
+pnpm dev &
+DEV_PID=\$!
+
+# 等待服务器就绪（最多 30 秒）
+for i in \$(seq 1 30); do
+  curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 | grep -q '200' && break
+  sleep 1
+done
+
+# 验证路由（根据模块不同验证不同路由）
+# teammate-admin 验证：
+curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/admin
+
+# teammate-email 验证：
+curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/forgot-password
+
+# teammate-ai 验证：
+curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/dashboard/usage
+
+# teammate-i18n 验证：
+curl -s -o /dev/null -w '%{http_code}' http://localhost:3000
+
+# teammate-payments 验证：
+curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/payments/checkout
+
+# 关闭 dev server
+kill \$DEV_PID 2>/dev/null
+wait \$DEV_PID 2>/dev/null
+\`\`\`
+注意：
+- 某些路由可能返回 302（重定向到登录）或 401，这是正常的，只要不是 500 就算通过
+- 如果返回 500，说明页面有运行时错误，必须修复后才能 commit
+- smoke test 失败不要跳过，要定位问题并修复
 
 ## Phase 0: 你先做
-1. 读取 CLAUDE.md 和 TODO.md 了解项目全貌
-2. 读取已有代码的关键文件：
+1. 读取已有代码的关键文件：
    - lib/db/schema.ts（了解已有数据模型）
    - lib/payments/stripe.ts（了解已有支付实现）
    - lib/auth/session.ts（了解已有 auth 实现）
    - app/(login)/actions.ts（了解已有 Server Actions）
    - middleware.ts（了解已有中间件）
-3. 运行 pnpm install
-4. 统一安装所有新增依赖（重要：teammate 禁止自行 pnpm add）：
+2. 运行 pnpm install
+3. 统一安装所有新增依赖（重要：teammate 禁止自行 pnpm add）：
    pnpm add recharts date-fns resend @react-email/components @react-email/render @lemonsqueezy/lemonsqueezy.js next-intl openai @tanstack/react-table
-5. 用 npx shadcn@latest add 安装需要的 UI 组件
-6. 创建 TODO.md 中列出的所有目录结构
-7. 确认 .env 已存在（如果不存在，参考 .env.example 创建，但不要覆盖已有的 .env）
-8. git commit 初始化
+4. 用 npx shadcn@latest add 安装需要的 UI 组件
+5. 创建 TODO.md 中列出的所有目录结构
+6. 确认 .env 已存在（如果不存在，参考 .env.example 创建，但不要覆盖已有的 .env）
+7. git commit 初始化
 
 ## 然后分配 5 个 teammate（Opus 做复杂模块，Sonnet 做标准模块）
 
@@ -70,6 +134,7 @@ claude --dangerously-skip-permissions -p "
 4. Pricing 页面适配是低优先级，如果改动导致已有 Stripe 流程报错立即回退
 5. 不要自行 pnpm add，依赖已统一安装
 6. 完成后运行 npx tsc --noEmit 和 pnpm build
+7. Smoke test：pnpm dev 启动后 curl http://localhost:3000/api/payments/checkout 确认不返回 500，然后关闭 dev server
 
 ### teammate-admin（管理后台）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 1。你负责创建完整的管理后台，包括数据看板（带 recharts 图表）、用户管理、活动日志、订阅管理。
@@ -77,6 +142,7 @@ claude --dangerously-skip-permissions -p "
 1. Admin 权限用邮箱白名单方式（ADMIN_EMAILS 常量），不要改动已有 schema 添加 isAdmin 字段
 2. 严格只创建和编辑 CLAUDE.md 中你的专属文件
 3. 完成后运行 npx tsc --noEmit 和 pnpm build
+4. Smoke test：pnpm dev 启动后 curl http://localhost:3000/admin 确认不返回 500，然后关闭 dev server
 
 ### teammate-email（邮件系统 + Auth 增强）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 2。你负责搭建 Resend 邮件系统、创建 React Email 模板、实现忘记密码完整流程。
@@ -85,6 +151,7 @@ claude --dangerously-skip-permissions -p "
 2. **禁止修改 lib/db/schema.ts**，将新表定义写在 lib/db/email-schema.ts 中
 3. 不要自行 pnpm add，依赖已统一安装
 4. 完成后运行 npx tsc --noEmit 和 pnpm build
+5. Smoke test：pnpm dev 启动后 curl http://localhost:3000/forgot-password 确认不返回 500，然后关闭 dev server
 
 ### teammate-i18n（国际化）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 4。你负责搭建 next-intl 国际化系统。
@@ -93,6 +160,7 @@ claude --dangerously-skip-permissions -p "
 2. **禁止修改已有页面**，只对你新建的文件使用翻译函数
 3. 不要自行 pnpm add，依赖已统一安装
 4. 完成后运行 npx tsc --noEmit 和 pnpm build
+5. Smoke test：pnpm dev 启动后 curl http://localhost:3000 确认不返回 500，然后关闭 dev server
 
 ### teammate-ai（AI 用量追踪）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 5。你负责创建 AI 用量追踪和计费系统。
@@ -102,6 +170,7 @@ claude --dangerously-skip-permissions -p "
 3. 示例 AI 聊天端点用 openai SDK 调 DeepSeek（baseURL: https://api.deepseek.com, model: deepseek-chat）
 4. 不要自行 pnpm add，依赖已统一安装
 5. 完成后运行 npx tsc --noEmit 和 pnpm build
+6. Smoke test：pnpm dev 启动后 curl http://localhost:3000/dashboard/usage 确认不返回 500，然后关闭 dev server
 
 ## Phase 6: 集成验证（你负责）
 等所有 teammate 完成后：
@@ -112,7 +181,47 @@ claude --dangerously-skip-permissions -p "
 5. 有错误就定位并指派对应 teammate 修复
 6. 确认导航互通（顶部导航 + 各侧边栏）
 7. 反复修复直到 pnpm build 成功
-8. 最终 git commit 并输出 COMPLETE
+8. 全量 Smoke Test：
+   pnpm dev 启动后依次验证以下路由不返回 500：
+   - http://localhost:3000（首页）
+   - http://localhost:3000/sign-in（登录页）
+   - http://localhost:3000/pricing（定价页）
+   - http://localhost:3000/admin（管理后台）
+   - http://localhost:3000/forgot-password（忘记密码）
+   - http://localhost:3000/dashboard/usage（用量页面）
+   验证完毕后关闭 dev server。
+   如果有 500 错误，修复后重新验证。
+9. 所有验证通过后：
+   - git commit 'feat: integration complete - all modules verified'
+   - 在项目根目录创建 COMPLETE 文件：echo 'done' > COMPLETE
+   - git add COMPLETE && git commit -m 'chore: mark project as complete'
+   - 输出 COMPLETE
 
-现在开始执行 Phase 0。
+现在开始：先检查进度，再决定从哪里开始执行。
 "
+
+  echo ""
+  echo "第 ${LOOP_COUNT} 轮执行结束，时间: $(date)"
+
+  # 检查是否完成
+  if [ -f COMPLETE ]; then
+    echo ""
+    echo "=========================================="
+    echo "  任务完成！"
+    echo "  总轮数: ${LOOP_COUNT}"
+    echo "  完成时间: $(date)"
+    echo "=========================================="
+    break
+  fi
+
+  if [ $LOOP_COUNT -lt $MAX_LOOPS ]; then
+    echo "未检测到 COMPLETE 文件，10 秒后自动重启下一轮..."
+    sleep 10
+  else
+    echo ""
+    echo "=========================================="
+    echo "  已达最大轮数 ${MAX_LOOPS}，停止执行"
+    echo "  请手动检查项目状态"
+    echo "=========================================="
+  fi
+done

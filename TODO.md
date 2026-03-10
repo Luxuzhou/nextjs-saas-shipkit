@@ -76,6 +76,7 @@
 ### 1.6 Admin 验证
 - [ ] 运行 npx tsc --noEmit 确认无类型错误
 - [ ] 运行 pnpm build 确认构建通过
+- [ ] Smoke test：pnpm dev 启动后 curl http://localhost:3000/admin 确认不返回 500，然后关闭 dev server
 - [ ] git commit "fix(admin): resolve any build errors"
 
 ---
@@ -116,6 +117,7 @@
 ### 2.5 Email 验证
 - [ ] 运行 npx tsc --noEmit
 - [ ] 运行 pnpm build
+- [ ] Smoke test：pnpm dev 启动后 curl http://localhost:3000/forgot-password 确认不返回 500，然后关闭 dev server
 - [ ] git commit "fix(email): resolve any build errors"
 
 ---
@@ -163,6 +165,7 @@
 ### 3.6 Payments 验证
 - [ ] 运行 npx tsc --noEmit
 - [ ] 运行 pnpm build
+- [ ] Smoke test：pnpm dev 启动后 curl http://localhost:3000/api/payments/checkout 确认不返回 500，然后关闭 dev server
 - [ ] git commit "fix(payments): resolve any build errors"
 
 ---
@@ -202,6 +205,7 @@
 ### 4.5 i18n 验证
 - [ ] 运行 npx tsc --noEmit
 - [ ] 运行 pnpm build
+- [ ] Smoke test：pnpm dev 启动后 curl http://localhost:3000 确认不返回 500，然后关闭 dev server
 - [ ] git commit "fix(i18n): resolve any build errors"
 
 ---
@@ -260,6 +264,7 @@
 ### 5.6 AI 模块验证
 - [ ] 运行 npx tsc --noEmit
 - [ ] 运行 pnpm build
+- [ ] Smoke test：pnpm dev 启动后 curl http://localhost:3000/dashboard/usage 确认不返回 500，然后关闭 dev server
 - [ ] git commit "fix(ai): resolve any build errors"
 
 ---
@@ -290,5 +295,14 @@
 - [ ] 运行 pnpm build 检查构建
 - [ ] 如果有错误，定位到具体模块，指派对应 teammate 修复
 - [ ] 反复修复直到 pnpm build 成功
-- [ ] git commit "feat: integration complete"
+- [ ] 全量 Smoke Test：pnpm dev 启动后依次验证以下路由不返回 500：
+  - http://localhost:3000（首页）
+  - http://localhost:3000/sign-in（登录页）
+  - http://localhost:3000/pricing（定价页）
+  - http://localhost:3000/admin（管理后台）
+  - http://localhost:3000/forgot-password（忘记密码）
+  - http://localhost:3000/dashboard/usage（用量页面）
+  如果有 500 错误，修复后重新验证。验证完毕后关闭 dev server。
+- [ ] git commit "feat: integration complete - all modules verified"
+- [ ] echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark project as complete'
 - [ ] 输出 COMPLETE
