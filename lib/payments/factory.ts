@@ -1,6 +1,8 @@
 import type { PaymentProvider } from './types';
 import { StripeProvider } from './providers/stripe';
 import { LemonSqueezyProvider } from './providers/lemon-squeezy';
+import { AlipayProvider } from './providers/alipay';
+import { WechatPayProvider } from './providers/wechat-pay';
 
 let cachedProvider: PaymentProvider | null = null;
 let cachedProviderName: string | null = null;
@@ -19,6 +21,12 @@ export function getPaymentProvider(): PaymentProvider {
       break;
     case 'lemon-squeezy':
       cachedProvider = new LemonSqueezyProvider();
+      break;
+    case 'alipay':
+      cachedProvider = new AlipayProvider();
+      break;
+    case 'wechat-pay':
+      cachedProvider = new WechatPayProvider();
       break;
     default:
       console.warn(
