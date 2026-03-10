@@ -54,19 +54,27 @@
 7. 完成后运行 npx tsc --noEmit 和 pnpm build
 8. Smoke test：端口 3001，验证 /admin/roles 不返回 500
 
-### teammate-billing（完整计费系统）— 用 Opus 模型
-指令：执行 TODO-phase2.md 中的 Phase 9。你负责创建完整的计费系统。
+### teammate-billing（完整计费系统 + 国内支付）— 用 Opus 模型
+指令：执行 TODO-phase2.md 中的 Phase 9。你负责创建完整的计费系统，并新增支付宝和微信支付 Provider。
 关键原则：
 1. 先读懂 lib/ai/billing.ts 和 lib/ai/usage-tracker.ts（已有的 AI 用量计费逻辑）
-2. 先读懂 lib/payments/types.ts 和 lib/payments/providers/（已有的支付抽象层）
+2. 先读懂 lib/payments/types.ts 和 lib/payments/providers/（已有的支付抽象层，已有 Stripe + LemonSqueezy 两个 provider）
 3. **禁止修改 lib/db/schema.ts**，新表写在 lib/db/billing-schema.ts
 4. **禁止修改 lib/ai/ 下的文件**，billing 模块可以 import 和复用它们的类型和函数
-5. **禁止修改 lib/payments/ 下的已有文件**，billing 模块可以 import 它们
-6. **环境变量降级**：Stripe 不可用时返回 mock 数据
-7. Dashboard 页面在 app/(dashboard)/dashboard/billing/，不要碰其他 dashboard 页面
-8. 不要自行 pnpm add
-9. 完成后运行 npx tsc --noEmit 和 pnpm build
-10. Smoke test：端口 3002，验证 /dashboard/billing 不返回 500
+5. **可以修改 lib/payments/factory.ts**（仅添加 alipay 和 wechat-pay 的 case）
+6. **禁止修改 lib/payments/ 下的其他已有文件**（stripe.ts, actions.ts, providers/stripe.ts, providers/lemon-squeezy.ts）
+7. 新增两个支付 Provider（实现 PaymentProvider 接口）：
+   - lib/payments/providers/alipay.ts：支付宝当面付/网页支付，RSA2 签名（手写签名逻辑，不用官方 SDK）
+   - lib/payments/providers/wechat-pay.ts：微信支付 V3 Native 支付，生成扫码二维码
+   - lib/payments/providers/qrcode.ts：纯 JS 二维码生成（将 code_url 转 data URL）
+   - 支付宝异步通知端点：app/api/payments/alipay/notify/route.ts
+   - 微信支付异步通知端点：app/api/payments/wechat-pay/notify/route.ts
+   - components/billing/QRCodePayment.tsx：扫码支付 UI 组件
+8. **环境变量降级**：ALIPAY_APP_ID / WECHAT_PAY_MCH_ID 为空时返回明确错误，不影响其他 provider；Stripe 不可用时返回 mock 数据
+9. Dashboard 页面在 app/(dashboard)/dashboard/billing/，不要碰其他 dashboard 页面
+10. 不要自行 pnpm add
+11. 完成后运行 npx tsc --noEmit 和 pnpm build
+12. Smoke test：端口 3002，验证 /dashboard/billing 不返回 500
 
 ### teammate-notifications（通知 + Webhook 系统）— 用 Sonnet 模型
 指令：执行 TODO-phase2.md 中的 Phase 10。你负责创建通知中心和 Webhook 系统。

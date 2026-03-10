@@ -196,9 +196,17 @@ lib/billing/                    # 新建：计费系统
 lib/db/billing-schema.ts        # 新建：billing 相关表
 app/(dashboard)/dashboard/billing/  # 新建：计费页面
 app/api/billing/                # 新建：计费 API
+lib/payments/providers/alipay.ts      # 新建：支付宝 Provider
+lib/payments/providers/wechat-pay.ts  # 新建：微信支付 Provider
+lib/payments/providers/qrcode.ts      # 新建：二维码生成工具
+app/api/payments/alipay/notify/       # 新建：支付宝异步通知
+app/api/payments/wechat-pay/notify/   # 新建：微信支付异步通知
+components/billing/                   # 新建：计费相关组件（含 QRCodePayment）
 ```
 **Schema 规则**：不要修改 `lib/db/schema.ts`，新表写在 `lib/db/billing-schema.ts`。
-**禁止修改** `lib/ai/` 和 `lib/payments/` 下的已有文件，可以 import 复用。
+**禁止修改** `lib/ai/` 下的文件，可以 import 复用。
+**禁止修改** `lib/payments/` 下的已有文件（stripe.ts, actions.ts, providers/stripe.ts, providers/lemon-squeezy.ts），可以 import 复用。
+**例外权限**：可以修改 `lib/payments/factory.ts`——仅添加 `'alipay'` 和 `'wechat-pay'` 两个 case。
 
 ### teammate-notifications 专属
 ```
@@ -426,7 +434,20 @@ RESEND_API_KEY=        # 邮件发送
 LEMON_SQUEEZY_API_KEY= # Lemon Squeezy
 LEMON_SQUEEZY_STORE_ID=
 LEMON_SQUEEZY_WEBHOOK_SECRET=
-PAYMENT_PROVIDER=stripe # 默认 stripe，可切换为 lemon-squeezy
+PAYMENT_PROVIDER=stripe # 默认 stripe，可选：lemon-squeezy / alipay / wechat-pay
+
+# 支付宝（当面付/网页支付）
+ALIPAY_APP_ID=
+ALIPAY_PRIVATE_KEY=
+ALIPAY_PUBLIC_KEY=
+ALIPAY_NOTIFY_URL=     # 异步通知回调 URL
+
+# 微信支付（Native 扫码支付）
+WECHAT_PAY_APP_ID=
+WECHAT_PAY_MCH_ID=
+WECHAT_PAY_API_KEY=
+WECHAT_PAY_CERT_SERIAL=
+WECHAT_PAY_PRIVATE_KEY=
 DEEPSEEK_API_KEY=      # DeepSeek API
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 
@@ -449,6 +470,8 @@ NEXTAUTH_SECRET=       # NextAuth 密钥（可复用 AUTH_SECRET）
 - `RESEND_API_KEY=`（空）→ 邮件发送函数在 key 为空时跳过发送，打印 console.warn，不要抛错。
 - `DEEPSEEK_API_KEY=`（空）→ AI 聊天端点在 key 为空时返回 `{ error: "DEEPSEEK_API_KEY not configured" }` 和 HTTP 503。
 - `LEMON_SQUEEZY_API_KEY=`（空）→ Lemon Squeezy provider 在 key 为空时所有方法抛出明确错误，factory 默认选 Stripe。
+- `ALIPAY_APP_ID=`（空）→ AlipayProvider 所有方法返回明确错误，不影响其他 provider 正常工作。
+- `WECHAT_PAY_MCH_ID=`（空）→ WechatPayProvider 所有方法返回明确错误，不影响其他 provider。
 - `GOOGLE_CLIENT_ID=`（空）→ Google 登录按钮显示但点击提示"未配置"，不影响邮箱登录。
 - `GITHUB_CLIENT_ID=`（空）→ 同上。
 

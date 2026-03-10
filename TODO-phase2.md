@@ -105,7 +105,29 @@
   - checkPlanLimits(teamId) — 检查是否超出套餐限制
 - [ ] git commit "feat(billing): core billing logic"
 
-### 9.3 Billing API
+### 9.3 国内支付 Provider（支付宝 + 微信支付）
+- [ ] 创建 lib/payments/providers/alipay.ts（实现 PaymentProvider 接口）：
+  - AlipayProvider class，实现 createCheckoutSession / handleWebhook / getProducts / getPrices
+  - 使用支付宝开放平台 SDK 签名逻辑（RSA2 签名，不依赖官方 SDK，手写签名避免包体积过大）
+  - createCheckoutSession：生成支付宝当面付/网页支付 URL（alipay.trade.page.pay）
+  - handleWebhook：验证支付宝异步通知签名，解析 trade_status
+  - **环境变量降级**：ALIPAY_APP_ID 为空时，所有方法返回明确错误信息，不影响其他 provider
+  - 配置项：ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY, ALIPAY_NOTIFY_URL
+- [ ] 创建 lib/payments/providers/wechat-pay.ts（实现 PaymentProvider 接口）：
+  - WechatPayProvider class，实现 createCheckoutSession / handleWebhook / getProducts / getPrices
+  - 使用微信支付 V3 API（JSAPI/Native 支付，生成支付二维码 URL）
+  - createCheckoutSession：调用 /v3/pay/transactions/native 生成 code_url（二维码链接）
+  - handleWebhook：验证微信支付 V3 通知（AES-256-GCM 解密）
+  - **环境变量降级**：WECHAT_PAY_MCH_ID 为空时，所有方法返回明确错误信息
+  - 配置项：WECHAT_PAY_APP_ID, WECHAT_PAY_MCH_ID, WECHAT_PAY_API_KEY, WECHAT_PAY_CERT_SERIAL, WECHAT_PAY_PRIVATE_KEY
+- [ ] 修改 lib/payments/factory.ts：添加 'alipay' 和 'wechat-pay' case
+- [ ] 创建 lib/payments/providers/qrcode.ts：二维码生成工具（将微信支付的 code_url 和支付宝的 qr_code 转为 data URL，纯 JS 实现不依赖外部库）
+- [ ] 创建 app/api/payments/alipay/notify/route.ts：支付宝异步通知接收端点
+- [ ] 创建 app/api/payments/wechat-pay/notify/route.ts：微信支付异步通知接收端点
+- [ ] 创建 components/billing/QRCodePayment.tsx：扫码支付组件（展示二维码 + 轮询支付结果）
+- [ ] git commit "feat(billing): alipay and wechat-pay providers"
+
+### 9.4 Billing API
 - [ ] GET /api/billing/invoices — 查询账单历史
 - [ ] GET /api/billing/current — 当前周期用量和预估费用
 - [ ] POST /api/billing/change-plan — 变更套餐
@@ -113,7 +135,7 @@
 - [ ] **环境变量降级**：Stripe 不可用时返回 mock 数据
 - [ ] git commit "feat(billing): API routes"
 
-### 9.4 Billing Dashboard 页面
+### 9.5 Billing Dashboard 页面
 - [ ] 创建 app/(dashboard)/dashboard/billing/page.tsx：
   - 当前套餐信息卡片（套餐名、价格、到期时间）
   - 本月用量概览（AI tokens / API 调用 / 成员数 vs 限额）
@@ -125,7 +147,7 @@
 - [ ] 创建 components/billing/UsageOverview.tsx — 用量概览（进度条）
 - [ ] git commit "feat(billing): dashboard billing page"
 
-### 9.5 Billing 验证
+### 9.6 Billing 验证
 - [ ] 运行 npx tsc --noEmit
 - [ ] 运行 pnpm build
 - [ ] Smoke test：端口 3002，验证 /dashboard/billing 不返回 500
