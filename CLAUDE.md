@@ -344,6 +344,22 @@ app/(dashboard)/dashboard/feature-flags/  # 新建：Flag 管理页面
 ```
 **Schema 规则**：不要修改 `lib/db/schema.ts`，新表写在 `lib/db/feature-flags-schema.ts`。
 
+### teammate-e2e-wave4 专属
+```
+e2e/                            # 在已有目录下追加测试文件
+  ai-assistant.spec.ts
+  realtime.spec.ts
+  security.spec.ts
+  api-keys.spec.ts
+  api-docs.spec.ts
+  analytics.spec.ts
+  feature-flags.spec.ts
+  docs.spec.ts
+  landing.spec.ts
+  billing-payment.spec.ts
+```
+**禁止修改任何业务代码**，只写测试。复用 e2e/helpers/ 下已有的辅助函数。
+
 ### teammate-docs 专属
 ```
 lib/docs/                       # 新建：文档工具

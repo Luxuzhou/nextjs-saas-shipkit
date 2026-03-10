@@ -885,5 +885,98 @@
 - [ ] 修复所有 500 错误
 - [ ] 运行 npx playwright test --reporter=list（记录结果，允许部分失败）
 - [ ] git commit "feat: all 15 modules integration complete - full SaaS platform verified"
+- [ ] 不要创建 COMPLETE 文件，继续 Phase 28
+
+---
+
+## Phase 28: Wave 3+4 E2E 测试补全（teammate-e2e-wave4，Sonnet）
+
+### 28.1 AI 助手 E2E
+- [ ] 创建 e2e/ai-assistant.spec.ts：
+  - 测试 /dashboard/ai-assistant 页面加载
+  - 测试发送消息（输入框 → 发送按钮 → 消息出现在对话区）
+  - 测试新建对话
+  - 测试空 API key 时显示错误提示而非崩溃
+
+### 28.2 实时功能 E2E
+- [ ] 创建 e2e/realtime.spec.ts：
+  - 测试 /api/realtime/presence 返回有效 SSE 响应头（Content-Type: text/event-stream）
+  - 测试在线状态组件加载（如果集成到了页面中）
+
+### 28.3 OAuth/安全设置 E2E
+- [ ] 创建 e2e/security.spec.ts：
+  - 测试 /dashboard/security 页面加载
+  - 测试社交登录按钮存在（Google / GitHub）
+  - 测试未配置 OAuth 时点击按钮显示"未配置"提示
+  - 测试 2FA 开启/关闭 toggle 存在
+
+### 28.4 API Gateway E2E
+- [ ] 创建 e2e/api-keys.spec.ts：
+  - 测试 /dashboard/api-keys 页面加载
+  - 测试创建 API Key（填写名称 → 生成 → 显示 key）
+  - 测试 API Key 列表展示
+  - 测试吊销 API Key
+- [ ] 创建 e2e/api-docs.spec.ts：
+  - 测试 /dashboard/api-docs 页面加载（Swagger UI 渲染）
+  - 测试 /api/v1/docs 返回 JSON（OpenAPI spec）
+
+### 28.5 Analytics E2E
+- [ ] 创建 e2e/analytics.spec.ts：
+  - 测试 /dashboard/analytics 页面加载
+  - 测试图表组件渲染（折线图、柱状图存在于 DOM）
+  - 测试日期范围切换
+  - 测试 /dashboard/analytics/funnels 页面加载
+
+### 28.6 Feature Flags E2E
+- [ ] 创建 e2e/feature-flags.spec.ts：
+  - 测试 /dashboard/feature-flags 页面加载
+  - 测试创建新 Flag（填写 key + name → 提交 → 出现在列表）
+  - 测试 toggle 开关切换
+  - 测试删除 Flag（确认弹窗 → 删除 → 从列表消失）
+
+### 28.7 Docs 站 E2E
+- [ ] 创建 e2e/docs.spec.ts：
+  - 测试 /docs 页面加载（侧边栏 + 内容区）
+  - 测试侧边栏导航点击跳转
+  - 测试 /docs/getting-started 内容渲染
+  - 测试代码高亮块存在
+  - 测试搜索功能（Ctrl+K 弹出搜索框 → 输入关键词 → 显示结果）
+
+### 28.8 Landing Page E2E
+- [ ] 创建 e2e/landing.spec.ts：
+  - 测试首页 / 加载
+  - 测试 Hero 区域渲染（标题 + CTA 按钮）
+  - 测试 Features 区域渲染（6 个功能卡片）
+  - 测试 FAQ 折叠面板交互（点击展开/收起）
+  - 测试 CTA 按钮跳转到 /pricing 或 /sign-up
+  - 测试响应式：viewport 切换到 mobile 后布局正常
+
+### 28.9 Billing 支付流程 E2E
+- [ ] 创建 e2e/billing-payment.spec.ts：
+  - 测试 /dashboard/billing 页面加载
+  - 测试套餐列表展示
+  - 测试套餐切换按钮可点击
+  - 测试支付方式选择器显示（Stripe / 支付宝 / 微信支付）
+  - 测试支付宝/微信支付选择后显示二维码组件
+  - 测试环境变量为空时显示友好提示而非崩溃
+
+### 28.10 E2E 验证
+- [ ] 运行 npx playwright test --reporter=list 确认所有新测试可执行
+- [ ] git commit "feat(e2e): wave 3+4 full E2E test coverage"
+
+---
+
+## Phase 29: 最终验证（Lead 负责）
+
+### 29.1 全量 E2E 运行
+- [ ] 运行 npx playwright test --reporter=list（全部测试，记录通过/失败数）
+- [ ] 如有因代码 bug 导致的失败（非数据库空状态），指派对应 teammate 修复
+- [ ] 修复后重新运行验证
+
+### 29.2 最终确认
+- [ ] npx tsc --noEmit
+- [ ] pnpm build
+- [ ] 全量 Smoke Test（端口 3010），快速验证所有 21 个路由
+- [ ] git commit "feat: final E2E verification complete"
 - [ ] echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark all phases complete'
 - [ ] 输出 COMPLETE

@@ -337,7 +337,33 @@
 8. 修复所有 500 错误
 9. 运行 npx playwright test --reporter=list（记录结果，允许部分失败）
 10. git commit "feat: all 15 modules integration complete - full SaaS platform verified"
-11. echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark all phases complete'
-12. 输出 COMPLETE
+11. 不要创建 COMPLETE 文件，继续 Phase 28
+
+### teammate-e2e-wave4（Wave 3+4 E2E 测试补全）— 用 Sonnet 模型
+指令：执行 TODO-phase2.md 中的 Phase 28。你负责为 Wave 3+4 的所有新模块补写 Playwright E2E 测试。
+关键原则：
+1. 先读懂 e2e/ 目录下已有的测试文件和 playwright.config.ts（Phase 15 已创建）
+2. 复用 e2e/helpers/auth.ts 中的测试辅助函数（登录、注册等）
+3. 测试文件全部放在 e2e/ 目录下，命名与模块对应
+4. **禁止修改任何业务代码**，只写测试
+5. 测试要覆盖：AI 助手、实时功能、OAuth/安全设置、API Gateway、Analytics、Feature Flags、Docs 文档站、Landing Page、Billing 支付流程
+6. 每个模块至少测试：页面加载、核心 UI 元素存在、主要交互流程
+7. 环境变量为空的场景也要测试（验证优雅降级而非崩溃）
+8. 部分测试因数据库状态可能失败是预期的，但测试代码本身不能有语法错误
+9. 不要自行 pnpm add
+10. 完成后运行 npx tsc --noEmit 和 pnpm build
+11. 运行 npx playwright test --reporter=list 验证测试能执行
+
+## Phase 29: 最终验证（你负责）
+等 teammate-e2e-wave4 完成后：
+1. 运行 npx playwright test --reporter=list（全部测试）
+2. 如有因代码 bug 导致的失败，指派对应 teammate 修复
+3. 修复后重新运行验证
+4. npx tsc --noEmit
+5. pnpm build
+6. 全量 Smoke Test（端口 3010），验证所有 21 个路由
+7. git commit "feat: final E2E verification complete"
+8. echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark all phases complete'
+9. 输出 COMPLETE
 
 现在开始：先检查进度，再决定从哪里开始执行。
