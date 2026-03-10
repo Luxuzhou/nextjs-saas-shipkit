@@ -97,7 +97,8 @@ app/api/auth/                   # 新建：auth 增强 API
 ```
 **例外权限**：teammate-email 可以修改以下已有文件（仅添加邮件发送调用）：
 - `app/(login)/actions.ts` — 在 inviteTeamMember 和 signUp 中添加发送邮件的调用
-- `lib/db/schema.ts` — 添加 passwordResetTokens 和 emailVerifications 表
+
+**Schema 规则**：不要直接修改 `lib/db/schema.ts`。将新表定义写在 `lib/db/email-schema.ts` 中，由 Lead 在集成阶段合并到主 schema。
 
 ### teammate-payments 专属
 ```
@@ -129,14 +130,16 @@ lib/i18n/                       # 新建：i18n 配置
 components/LocaleSwitcher.tsx   # 新建：语言切换组件
 ```
 **例外权限**：teammate-i18n 可以修改：
-- `middleware.ts` — 添加 next-intl 中间件（注意保留已有的 auth 逻辑）
 - `app/layout.tsx` — 添加 NextIntlClientProvider
 - `next.config.ts` — 添加 createNextIntlPlugin
 
+**禁止修改 `middleware.ts`**。middleware 中 auth 和 i18n 的合并逻辑复杂，由 Lead 在 Phase 6 集成阶段统一处理。teammate-i18n 应在 `lib/i18n/middleware.ts` 中导出一个 intlMiddleware 配置/函数，供 Lead 集成时使用。
+
 **重要策略**：
-1. 先搭建 next-intl 基础设施（config, messages, middleware）
-2. 先对新建的页面（admin, forgot-password 等）做国际化
-3. **最后才包裹已有页面**（这步如果来不及可以跳过，留给 Lead 集成阶段）
+1. 先搭建 next-intl 基础设施（config, messages, `lib/i18n/middleware.ts` 导出配置）
+2. 创建翻译文件和 LocaleSwitcher 组件
+3. 对新建的页面做国际化
+4. **不要碰已有页面**，留给 Lead 集成阶段统一包裹
 
 ### teammate-ai 专属
 ```
@@ -156,12 +159,18 @@ components/usage/               # 新建：用量组件
   PlanLimits.tsx
 ```
 **例外权限**：teammate-ai 可以修改：
-- `lib/db/schema.ts` — 添加 aiUsageLogs 和 aiQuotas 表
-- `app/(dashboard)/dashboard/layout.tsx` — 在侧边栏添加 "Usage" 导航项
+- `app/(dashboard)/dashboard/layout.tsx` — 在侧边栏添加 "Usage" 导航项（只添加一个导航项，不改动其他内容）
+
+**Schema 规则**：不要直接修改 `lib/db/schema.ts`。将新表定义写在 `lib/db/ai-schema.ts` 中，由 Lead 在集成阶段合并到主 schema。
+
+**注意**：teammate-admin 不可以修改 `app/(dashboard)/dashboard/layout.tsx`，该文件只有 teammate-ai 有例外权限。
 
 ---
 
 ## 新增依赖允许列表
+所有新增依赖已在 Phase 0 由 Lead 统一安装。**Teammate 禁止自行运行 pnpm add**，避免 pnpm-lock.yaml 并发冲突。如果发现缺少某个依赖，通知 Lead 安装。
+
+已安装的新增依赖：
 - `resend` + `@react-email/components` + `@react-email/render`（邮件系统）
 - `@lemonsqueezy/lemonsqueezy.js`（Lemon Squeezy SDK）
 - `next-intl`（国际化）

@@ -10,13 +10,16 @@
 - [ ] 读取已有代码结构：lib/db/schema.ts, lib/payments/stripe.ts, app/(login)/actions.ts, middleware.ts
 - [ ] 创建 .env 文件，填入占位值（参考 CLAUDE.md 环境变量部分和 .env.example）
 - [ ] 运行 pnpm install 确认依赖安装成功
-- [ ] 安装新增公共依赖：pnpm add recharts date-fns
+- [ ] 安装所有新增依赖（统一安装，teammate 不可自行安装）：
+  ```bash
+  pnpm add recharts date-fns resend @react-email/components @react-email/render @lemonsqueezy/lemonsqueezy.js next-intl openai @tanstack/react-table
+  ```
 - [ ] 添加 shadcn 组件（如果还没有的话）：npx shadcn@latest add sheet separator switch progress tabs tooltip chart
 - [ ] 创建基础目录结构：
   ```
   mkdir -p app/(admin)/admin/{users,activity,subscriptions}
   mkdir -p app/api/admin app/api/auth app/api/payments app/api/ai
-  mkdir -p app/(login)/forgot-password
+  mkdir -p app/(login)/forgot-password app/(login)/reset-password
   mkdir -p app/(dashboard)/dashboard/usage
   mkdir -p components/admin components/usage
   mkdir -p lib/email/templates lib/ai lib/payments/providers lib/i18n
@@ -79,7 +82,7 @@
 ## Phase 2: 邮件系统 + Auth 增强（teammate-email）
 
 ### 2.1 邮件基础设施
-- [ ] pnpm add resend @react-email/components @react-email/render
+- [ ] 确认 resend, @react-email/components, @react-email/render 已由 Lead 安装（不要自行 pnpm add）
 - [ ] 创建 lib/email/send.ts — Resend 发送封装：
   - sendEmail(to, subject, reactComponent) 通用发送函数
   - 错误处理 + 日志
@@ -95,8 +98,8 @@
 - [ ] git commit "feat(email): email templates"
 
 ### 2.3 忘记密码流程
-- [ ] 在 lib/db/schema.ts 添加 passwordResetTokens 表（token, userId, expiresAt）
-- [ ] 运行 pnpm db:generate && pnpm db:migrate 应用 schema 变更
+- [ ] 创建 lib/db/email-schema.ts — 定义 passwordResetTokens 表（token, userId, expiresAt）和 emailVerifications 表。不要修改 lib/db/schema.ts，Lead 会在集成阶段合并。
+- [ ] 在 email-schema.ts 中直接用 Drizzle 的 pgTable 定义表，并导出供 API 路由使用（可以直接引用 drizzle client 操作这些表）
 - [ ] 创建 app/api/auth/forgot-password/route.ts — 生成重置 token + 发送邮件
 - [ ] 创建 app/api/auth/reset-password/route.ts — 验证 token + 更新密码
 - [ ] 创建 app/(login)/forgot-password/page.tsx — 忘记密码页面（输入邮箱）
@@ -138,7 +141,7 @@
 - [ ] git commit "refactor(payments): stripe provider"
 
 ### 3.3 Lemon Squeezy Provider
-- [ ] pnpm add @lemonsqueezy/lemonsqueezy.js
+- [ ] 确认 @lemonsqueezy/lemonsqueezy.js 已由 Lead 安装（不要自行 pnpm add）
 - [ ] 创建 lib/payments/providers/lemon-squeezy.ts — 实现 PaymentProvider 接口：
   - createCheckoutSession — 创建 Lemon Squeezy checkout
   - handleWebhook — 处理 Lemon Squeezy webhook
@@ -168,11 +171,11 @@
 ## Phase 4: 国际化 i18n（teammate-i18n）
 
 ### 4.1 基础设施搭建
-- [ ] pnpm add next-intl
-- [ ] 创建 lib/i18n/config.ts — 支持的语言列表 + 默认语言
+- [ ] 确认 next-intl 已由 Lead 安装（不要自行 pnpm add）
+- [ ] 创建 lib/i18n/config.ts — 支持的语言列表（en, zh）+ 默认语言（en）
 - [ ] 创建 lib/i18n/request.ts — next-intl 的 getRequestConfig
+- [ ] 创建 lib/i18n/middleware.ts — 导出 intlMiddleware 配置/函数，供 Lead 集成到根 middleware.ts（**不要直接修改根 middleware.ts**）
 - [ ] 修改 next.config.ts — 添加 createNextIntlPlugin
-- [ ] 修改 middleware.ts — 集成 next-intl 中间件（注意：保留已有的 auth session 刷新逻辑，两个中间件合并）
 - [ ] git commit "feat(i18n): infrastructure setup"
 
 ### 4.2 翻译文件
@@ -192,13 +195,10 @@
 - [ ] 将 LocaleSwitcher 添加到导航栏
 - [ ] git commit "feat(i18n): locale switcher component"
 
-### 4.4 国际化已有页面（如果时间允许）
-- [ ] Landing page (app/(dashboard)/page.tsx)
-- [ ] 登录/注册页面
-- [ ] Dashboard 页面
-- [ ] 定价页面
-- [ ] 如果时间不够，至少完成 Landing page 和登录页面，其余标记 TODO 留给后续
-- [ ] git commit "feat(i18n): internationalize existing pages"
+### 4.4 注意事项
+- [ ] **不要修改已有页面**（Landing page、登录页、Dashboard、定价页）。已有页面的国际化由 Lead 在 Phase 6 统一处理。
+- [ ] 只对 teammate-i18n 新建的文件（LocaleSwitcher 等）使用翻译函数
+- [ ] git commit "feat(i18n): i18n ready for integration"
 
 ### 4.5 i18n 验证
 - [ ] 运行 npx tsc --noEmit
@@ -210,10 +210,10 @@
 ## Phase 5: AI 用量追踪与计费（teammate-ai）
 
 ### 5.1 数据模型
-- [ ] 在 lib/db/schema.ts 添加表：
+- [ ] 创建 lib/db/ai-schema.ts — 定义以下表（不要修改 lib/db/schema.ts，Lead 会在集成阶段合并）：
   - aiUsageLogs（userId, teamId, model, inputTokens, outputTokens, cost, endpoint, createdAt）
   - aiQuotas（teamId, plan, monthlyTokenLimit, tokensUsed, resetAt）
-- [ ] 运行 pnpm db:generate && pnpm db:migrate
+- [ ] 在 ai-schema.ts 中直接用 Drizzle 的 pgTable 定义表，并导出供 API 路由使用
 - [ ] git commit "feat(ai): usage tracking schema"
 
 ### 5.2 用量追踪核心
@@ -236,7 +236,7 @@
 - [ ] git commit "feat(ai): billing logic"
 
 ### 5.4 示例 AI 端点
-- [ ] pnpm add openai
+- [ ] 确认 openai 已由 Lead 安装（不要自行 pnpm add）
 - [ ] 创建 app/api/ai/chat/route.ts — 示例聊天 API：
   - 使用 openai SDK 调 DeepSeek（baseURL: https://api.deepseek.com, model: deepseek-chat）
   - 请求前检查配额
@@ -267,15 +267,29 @@
 
 ## Phase 6: 集成与收尾（Lead Agent 负责）
 
-- [ ] 等待所有 5 个 teammate 完成
+### 6.1 Schema 合并
+- [ ] 读取 lib/db/email-schema.ts 和 lib/db/ai-schema.ts
+- [ ] 将这两个文件中的表定义合并到 lib/db/schema.ts（追加到已有表的后面）
+- [ ] 更新 lib/db/email-schema.ts 和 lib/db/ai-schema.ts 改为从 schema.ts 重新导出（保持其他模块的 import 不变）
+- [ ] 运行 pnpm db:generate && pnpm db:migrate 应用所有 schema 变更
+- [ ] git commit "feat: merge all schemas"
+
+### 6.2 Middleware 合并
+- [ ] 读取 lib/i18n/middleware.ts 中导出的 intl 配置
+- [ ] 修改根 middleware.ts，将 next-intl 中间件与已有的 auth session 刷新逻辑合并
+- [ ] 确保：未登录用户仍然被重定向到 /sign-in，i18n 路由正常工作
+- [ ] git commit "feat: integrate i18n middleware"
+
+### 6.3 导航互通
+- [ ] 确认顶部导航能到 Dashboard、Pricing、Admin
+- [ ] 确认 Dashboard 侧边栏能到 General、Security、Activity、Usage
+- [ ] 确认 Admin 侧边栏能到 Overview、Users、Activity、Subscriptions
+- [ ] 如有导航缺失，直接修复
+
+### 6.4 全局验证
 - [ ] 运行 npx tsc --noEmit 检查全局类型错误
 - [ ] 运行 pnpm build 检查构建
 - [ ] 如果有错误，定位到具体模块，指派对应 teammate 修复
-- [ ] 确认各模块间的导航互通：
-  - 顶部导航能到 Dashboard、Pricing、Admin
-  - Dashboard 侧边栏能到 General、Security、Activity、Usage
-  - Admin 侧边栏能到 Overview、Users、Activity、Subscriptions
-- [ ] 确认 middleware 正确工作（auth 保护 + i18n 路由，不冲突）
-- [ ] 最终 pnpm build 成功
+- [ ] 反复修复直到 pnpm build 成功
 - [ ] git commit "feat: integration complete"
 - [ ] 输出 COMPLETE
