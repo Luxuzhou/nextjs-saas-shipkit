@@ -8,7 +8,7 @@
 
 - [ ] 读取 CLAUDE.md 和 TODO.md 了解项目全貌
 - [ ] 读取已有代码结构：lib/db/schema.ts, lib/payments/stripe.ts, app/(login)/actions.ts, middleware.ts
-- [ ] 创建 .env 文件，填入占位值（参考 CLAUDE.md 环境变量部分和 .env.example）
+- [ ] 确认 .env 文件已存在（如果不存在，参考 .env.example 创建，但不要覆盖已有的 .env）
 - [ ] 运行 pnpm install 确认依赖安装成功
 - [ ] 安装所有新增依赖（统一安装，teammate 不可自行安装）：
   ```bash

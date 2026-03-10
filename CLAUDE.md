@@ -116,10 +116,10 @@ app/api/payments/               # 新建：通用支付 API
   webhook/route.ts
   portal/route.ts
 ```
-**例外权限**：teammate-payments 可以修改：
+**例外权限**：teammate-payments 可以修改（低优先级，时间不够可跳过）：
 - `app/(dashboard)/pricing/page.tsx` — 适配新的 provider 抽象层
 - `app/(dashboard)/pricing/submit-button.tsx` — 适配新接口
-- `app/api/stripe/` — 将逻辑迁移到新的 providers/ 后可标记为 deprecated
+注意：**不要修改 `app/api/stripe/` 目录下的任何文件**，已有的 Stripe 路由保留不动。
 
 ### teammate-i18n 专属
 ```
@@ -129,6 +129,7 @@ messages/                       # 新建：翻译文件
 lib/i18n/                       # 新建：i18n 配置
   config.ts
   request.ts
+  middleware.ts                 # 导出 intl 中间件配置，供 Lead 集成
 components/LocaleSwitcher.tsx   # 新建：语言切换组件
 ```
 **例外权限**：teammate-i18n 可以修改：
@@ -197,7 +198,7 @@ pnpm dev
 - 每完成一个独立功能，立即 git commit
 - commit message 格式：feat/fix/refactor: 简短描述
 - 不要创建分支，所有人在 main 上提交（简化集成）
-- commit 前先 git pull（如果其他 teammate 有新提交）
+- Agent Teams 在同一本地仓库工作，不需要 git pull
 
 ## 环境变量
 ```
@@ -208,11 +209,12 @@ STRIPE_WEBHOOK_SECRET= # Stripe webhook 密钥
 BASE_URL=http://localhost:3000
 AUTH_SECRET=           # JWT 签名密钥
 
-# 新增（teammate 负责在 .env 中添加占位）
-RESEND_API_KEY=        # 邮件发送（teammate-email）
-LEMON_SQUEEZY_API_KEY= # Lemon Squeezy（teammate-payments）
+# 新增（已在 .env 中预设占位，teammate 不要自行修改 .env）
+RESEND_API_KEY=        # 邮件发送
+LEMON_SQUEEZY_API_KEY= # Lemon Squeezy
 LEMON_SQUEEZY_WEBHOOK_SECRET=
-DEEPSEEK_API_KEY=      # DeepSeek API（teammate-ai）
+PAYMENT_PROVIDER=stripe # 默认 stripe，可切换为 lemon-squeezy
+DEEPSEEK_API_KEY=      # DeepSeek API
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 ```
 
