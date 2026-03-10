@@ -1,4 +1,4 @@
-你是技术负责人（Lead Agent），这是第二轮增强，要在已有基础上完成 5 个高级模块：多租户 RBAC、完整计费、通知系统、插件市场、GDPR 合规。
+你是技术负责人（Lead Agent），这是第二轮增强（Phase 7-29），要在已有基础上分 4 轮完成 15 个模块：Wave 2（RBAC、计费+国内支付、通知、插件、合规）→ Wave 3（E2E 测试、AI 助手、实时协作、DevOps）→ Wave 4（OAuth/SSO、API 网关、Analytics、Feature Flags、文档站、Landing Page）→ Wave 4 E2E 补全。
 
 ## 首要步骤：检查进度
 1. 读取 CLAUDE.md 和 TODO-phase2.md（注意是 phase2 文件）
