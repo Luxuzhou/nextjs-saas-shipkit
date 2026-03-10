@@ -17,14 +17,18 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-# 检查 prompt 文件
-if [ ! -f lead-prompt.md ]; then
-  echo "[警告] lead-prompt.md 不存在！退出。"
+# 检查 prompt 文件（优先用 phase2，没有则用 phase1）
+PROMPT_FILE="lead-prompt-phase2.md"
+if [ ! -f "$PROMPT_FILE" ]; then
+  PROMPT_FILE="lead-prompt.md"
+fi
+if [ ! -f "$PROMPT_FILE" ]; then
+  echo "[警告] 找不到 prompt 文件！退出。"
   exit 1
 fi
 
 echo "✓ .env 文件存在"
-echo "✓ lead-prompt.md 存在"
+echo "✓ $PROMPT_FILE 存在"
 echo "完成标志：COMPLETE 文件出现在项目根目录"
 echo ""
 
@@ -52,7 +56,7 @@ while [ $LOOP_COUNT -lt $MAX_LOOPS ]; do
   echo "清理完成"
 
   # 让 claude 自己读取 prompt 文件
-  claude --dangerously-skip-permissions -p "读取项目根目录的 lead-prompt.md 文件，按照其中的指令执行所有任务。"
+  claude --dangerously-skip-permissions -p "读取项目根目录的 ${PROMPT_FILE} 文件，按照其中的指令执行所有任务。"
 
   echo ""
   echo "第 ${LOOP_COUNT} 轮执行结束，时间: $(date)"
