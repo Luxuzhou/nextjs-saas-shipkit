@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Users, Settings, Shield, Activity, Menu, BarChart3 } from 'lucide-react';
+import { Users, Settings, Shield, Activity, Menu, BarChart3, CreditCard, Bell, Puzzle } from 'lucide-react';
 
 export default function DashboardLayout({
   children
@@ -19,7 +19,10 @@ export default function DashboardLayout({
     { href: '/dashboard/general', icon: Settings, label: 'General' },
     { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
     { href: '/dashboard/security', icon: Shield, label: 'Security' },
-    { href: '/dashboard/usage', icon: BarChart3, label: 'Usage' }
+    { href: '/dashboard/usage', icon: BarChart3, label: 'Usage' },
+    { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
+    { href: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
+    { href: '/dashboard/integrations', icon: Puzzle, label: 'Integrations' },
   ];
 
   return (

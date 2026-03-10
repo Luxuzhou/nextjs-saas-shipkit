@@ -6,6 +6,7 @@ import {
   timestamp,
   integer,
   boolean,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -203,3 +204,330 @@ export type AIUsageLog = typeof aiUsageLogs.$inferSelect;
 export type NewAIUsageLog = typeof aiUsageLogs.$inferInsert;
 export type AIQuota = typeof aiQuotas.$inferSelect;
 export type NewAIQuota = typeof aiQuotas.$inferInsert;
+
+// --- RBAC module tables (merged from lib/db/rbac-schema.ts) ---
+
+export const roles = pgTable('roles', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  name: varchar('name', { length: 50 }).notNull(),
+  description: text('description'),
+  isSystem: boolean('is_system').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const permissions = pgTable('permissions', {
+  id: serial('id').primaryKey(),
+  resource: varchar('resource', { length: 50 }).notNull(),
+  action: varchar('action', { length: 50 }).notNull(),
+  description: text('description'),
+});
+
+export const rolePermissions = pgTable('role_permissions', {
+  id: serial('id').primaryKey(),
+  roleId: integer('role_id')
+    .notNull()
+    .references(() => roles.id),
+  permissionId: integer('permission_id')
+    .notNull()
+    .references(() => permissions.id),
+});
+
+export const userRoles = pgTable('user_roles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  roleId: integer('role_id')
+    .notNull()
+    .references(() => roles.id),
+  assignedAt: timestamp('assigned_at').notNull().defaultNow(),
+  assignedBy: integer('assigned_by').references(() => users.id),
+});
+
+export const rolesRelations = relations(roles, ({ one, many }) => ({
+  team: one(teams, { fields: [roles.teamId], references: [teams.id] }),
+  rolePermissions: many(rolePermissions),
+  userRoles: many(userRoles),
+}));
+
+export const permissionsRelations = relations(permissions, ({ many }) => ({
+  rolePermissions: many(rolePermissions),
+}));
+
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+  role: one(roles, { fields: [rolePermissions.roleId], references: [roles.id] }),
+  permission: one(permissions, { fields: [rolePermissions.permissionId], references: [permissions.id] }),
+}));
+
+export const userRolesRelations = relations(userRoles, ({ one }) => ({
+  user: one(users, { fields: [userRoles.userId], references: [users.id] }),
+  team: one(teams, { fields: [userRoles.teamId], references: [teams.id] }),
+  role: one(roles, { fields: [userRoles.roleId], references: [roles.id] }),
+  assignedByUser: one(users, { fields: [userRoles.assignedBy], references: [users.id] }),
+}));
+
+export type Role = typeof roles.$inferSelect;
+export type NewRole = typeof roles.$inferInsert;
+export type Permission = typeof permissions.$inferSelect;
+export type NewPermission = typeof permissions.$inferInsert;
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type NewRolePermission = typeof rolePermissions.$inferInsert;
+export type UserRole = typeof userRoles.$inferSelect;
+export type NewUserRole = typeof userRoles.$inferInsert;
+
+// --- Billing module tables (merged from lib/db/billing-schema.ts) ---
+
+export const invoices = pgTable('invoices', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  totalAmount: varchar('total_amount', { length: 50 }).notNull().default('0'),
+  currency: varchar('currency', { length: 10 }).notNull().default('USD'),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  stripeInvoiceId: text('stripe_invoice_id'),
+  pdfUrl: text('pdf_url'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const usageBillingRecords = pgTable('usage_billing_records', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  month: varchar('month', { length: 7 }).notNull(),
+  aiTokensUsed: integer('ai_tokens_used').notNull().default(0),
+  aiCost: varchar('ai_cost', { length: 50 }).notNull().default('0'),
+  apiCallsUsed: integer('api_calls_used').notNull().default(0),
+  apiCost: varchar('api_cost', { length: 50 }).notNull().default('0'),
+  totalCost: varchar('total_cost', { length: 50 }).notNull().default('0'),
+  settledAt: timestamp('settled_at'),
+});
+
+export const planChangeLogs = pgTable('plan_change_logs', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  fromPlan: varchar('from_plan', { length: 50 }),
+  toPlan: varchar('to_plan', { length: 50 }).notNull(),
+  changedBy: integer('changed_by')
+    .notNull()
+    .references(() => users.id),
+  changedAt: timestamp('changed_at').notNull().defaultNow(),
+  effectiveAt: timestamp('effective_at').notNull().defaultNow(),
+  reason: text('reason'),
+});
+
+export type Invoice = typeof invoices.$inferSelect;
+export type NewInvoice = typeof invoices.$inferInsert;
+export type UsageBillingRecord = typeof usageBillingRecords.$inferSelect;
+export type NewUsageBillingRecord = typeof usageBillingRecords.$inferInsert;
+export type PlanChangeLog = typeof planChangeLogs.$inferSelect;
+export type NewPlanChangeLog = typeof planChangeLogs.$inferInsert;
+
+// --- Notifications module tables (merged from lib/db/notifications-schema.ts) ---
+
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  teamId: integer('team_id').references(() => teams.id),
+  type: varchar('type', { length: 100 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  body: text('body').notNull(),
+  isRead: boolean('is_read').notNull().default(false),
+  channel: varchar('channel', { length: 50 }).notNull().default('in_app'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const webhookEndpoints = pgTable('webhook_endpoints', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  url: text('url').notNull(),
+  secret: text('secret').notNull(),
+  events: jsonb('events').notNull().default([]),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  lastTriggeredAt: timestamp('last_triggered_at'),
+});
+
+export const webhookDeliveries = pgTable('webhook_deliveries', {
+  id: serial('id').primaryKey(),
+  webhookEndpointId: integer('webhook_endpoint_id')
+    .notNull()
+    .references(() => webhookEndpoints.id),
+  event: varchar('event', { length: 100 }).notNull(),
+  payload: jsonb('payload').notNull(),
+  statusCode: integer('status_code'),
+  response: text('response'),
+  attempts: integer('attempts').notNull().default(0),
+  nextRetryAt: timestamp('next_retry_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+  team: one(teams, { fields: [notifications.teamId], references: [teams.id] }),
+}));
+
+export const webhookEndpointsRelations = relations(webhookEndpoints, ({ one, many }) => ({
+  team: one(teams, { fields: [webhookEndpoints.teamId], references: [teams.id] }),
+  deliveries: many(webhookDeliveries),
+}));
+
+export const webhookDeliveriesRelations = relations(webhookDeliveries, ({ one }) => ({
+  webhookEndpoint: one(webhookEndpoints, { fields: [webhookDeliveries.webhookEndpointId], references: [webhookEndpoints.id] }),
+}));
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
+export type WebhookEndpoint = typeof webhookEndpoints.$inferSelect;
+export type NewWebhookEndpoint = typeof webhookEndpoints.$inferInsert;
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+export type NewWebhookDelivery = typeof webhookDeliveries.$inferInsert;
+
+// --- Plugins module tables (merged from lib/db/plugins-schema.ts) ---
+
+export const plugins = pgTable('plugins', {
+  id: serial('id').primaryKey(),
+  slug: varchar('slug', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 200 }).notNull(),
+  description: text('description').notNull(),
+  author: varchar('author', { length: 200 }).notNull(),
+  version: varchar('version', { length: 50 }).notNull().default('1.0.0'),
+  iconUrl: varchar('icon_url', { length: 500 }),
+  category: varchar('category', { length: 100 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  configSchema: jsonb('config_schema'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const pluginInstallations = pgTable('plugin_installations', {
+  id: serial('id').primaryKey(),
+  pluginId: integer('plugin_id')
+    .notNull()
+    .references(() => plugins.id),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  isEnabled: boolean('is_enabled').notNull().default(true),
+  config: jsonb('config').default({}),
+  installedBy: integer('installed_by')
+    .notNull()
+    .references(() => users.id),
+  installedAt: timestamp('installed_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const pluginApiKeys = pgTable('plugin_api_keys', {
+  id: serial('id').primaryKey(),
+  pluginId: integer('plugin_id')
+    .notNull()
+    .references(() => plugins.id),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  apiKey: varchar('api_key', { length: 255 }).notNull().unique(),
+  scopes: jsonb('scopes').notNull().default([]),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const pluginsRelations = relations(plugins, ({ many }) => ({
+  installations: many(pluginInstallations),
+  apiKeys: many(pluginApiKeys),
+}));
+
+export const pluginInstallationsRelations = relations(pluginInstallations, ({ one }) => ({
+  plugin: one(plugins, { fields: [pluginInstallations.pluginId], references: [plugins.id] }),
+  team: one(teams, { fields: [pluginInstallations.teamId], references: [teams.id] }),
+  installedByUser: one(users, { fields: [pluginInstallations.installedBy], references: [users.id] }),
+}));
+
+export const pluginApiKeysRelations = relations(pluginApiKeys, ({ one }) => ({
+  plugin: one(plugins, { fields: [pluginApiKeys.pluginId], references: [plugins.id] }),
+  team: one(teams, { fields: [pluginApiKeys.teamId], references: [teams.id] }),
+}));
+
+export type Plugin = typeof plugins.$inferSelect;
+export type NewPlugin = typeof plugins.$inferInsert;
+export type PluginInstallation = typeof pluginInstallations.$inferSelect;
+export type NewPluginInstallation = typeof pluginInstallations.$inferInsert;
+export type PluginApiKey = typeof pluginApiKeys.$inferSelect;
+export type NewPluginApiKey = typeof pluginApiKeys.$inferInsert;
+
+// --- Compliance module tables (merged from lib/db/compliance-schema.ts) ---
+
+export const auditLogs = pgTable('audit_logs', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').references(() => teams.id),
+  userId: integer('user_id').references(() => users.id),
+  action: varchar('action', { length: 100 }).notNull(),
+  resource: varchar('resource', { length: 100 }).notNull(),
+  resourceId: varchar('resource_id', { length: 255 }),
+  oldValue: jsonb('old_value'),
+  newValue: jsonb('new_value'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const dataExportRequests = pgTable('data_export_requests', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  teamId: integer('team_id').references(() => teams.id),
+  type: varchar('type', { length: 50 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  fileUrl: text('file_url'),
+  requestedAt: timestamp('requested_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+  expiresAt: timestamp('expires_at'),
+});
+
+export const dataRetentionPolicies = pgTable('data_retention_policies', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  resource: varchar('resource', { length: 100 }).notNull(),
+  retentionDays: integer('retention_days').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, { fields: [auditLogs.userId], references: [users.id] }),
+  team: one(teams, { fields: [auditLogs.teamId], references: [teams.id] }),
+}));
+
+export const dataExportRequestsRelations = relations(dataExportRequests, ({ one }) => ({
+  user: one(users, { fields: [dataExportRequests.userId], references: [users.id] }),
+  team: one(teams, { fields: [dataExportRequests.teamId], references: [teams.id] }),
+}));
+
+export const dataRetentionPoliciesRelations = relations(dataRetentionPolicies, ({ one }) => ({
+  team: one(teams, { fields: [dataRetentionPolicies.teamId], references: [teams.id] }),
+}));
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;
+export type DataExportRequest = typeof dataExportRequests.$inferSelect;
+export type NewDataExportRequest = typeof dataExportRequests.$inferInsert;
+export type DataRetentionPolicy = typeof dataRetentionPolicies.$inferSelect;
+export type NewDataRetentionPolicy = typeof dataRetentionPolicies.$inferInsert;

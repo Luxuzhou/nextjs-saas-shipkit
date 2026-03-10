@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { customerPortalAction } from '@/lib/payments/actions';
 import { useActionState } from 'react';
-import { TeamDataWithMembers, User } from '@/lib/db/schema';
+import type { TeamDataWithMembers, User } from '@/lib/db/schema';
 import { removeTeamMember, inviteTeamMember } from '@/app/(login)/actions';
 import useSWR from 'swr';
 import { Suspense } from 'react';

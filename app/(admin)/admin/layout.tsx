@@ -20,6 +20,7 @@ const navItems = [
   { href: '/admin/users', icon: Users, label: 'Users' },
   { href: '/admin/activity', icon: Activity, label: 'Activity' },
   { href: '/admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+  { href: '/admin/roles', icon: ShieldAlert, label: 'Roles' },
   { href: '/admin/compliance', icon: ShieldCheck, label: 'Compliance' },
 ];
 

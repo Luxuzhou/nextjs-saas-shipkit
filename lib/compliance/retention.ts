@@ -1,21 +1,9 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { dataRetentionPolicies } from '@/lib/db/compliance-schema';
-import { AuditResource } from './types';
 import type { RetentionPolicyEntry } from './types';
-
-export const DEFAULT_RETENTION: Record<string, number> = {
-  [AuditResource.AUDIT_LOG]: 365,
-  [AuditResource.USER]: 2555, // ~7 years
-  [AuditResource.TEAM]: 2555,
-  [AuditResource.TEAM_MEMBER]: 365,
-  [AuditResource.INVITATION]: 90,
-  [AuditResource.SUBSCRIPTION]: 2555,
-  [AuditResource.PAYMENT]: 2555,
-  [AuditResource.API_KEY]: 365,
-  [AuditResource.NOTIFICATION]: 90,
-  [AuditResource.DATA_EXPORT]: 7,
-};
+import { DEFAULT_RETENTION } from './constants';
+export { DEFAULT_RETENTION };
 
 export async function setRetentionPolicy(params: {
   teamId: number;

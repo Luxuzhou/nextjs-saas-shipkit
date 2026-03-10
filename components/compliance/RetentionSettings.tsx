@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Save } from 'lucide-react';
 import type { RetentionPolicyEntry } from '@/lib/compliance/types';
-import { DEFAULT_RETENTION } from '@/lib/compliance/retention';
+import { DEFAULT_RETENTION } from '@/lib/compliance/constants';
 
 interface RetentionSettingsProps {
   teamId: number;
