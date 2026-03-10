@@ -1,0 +1,56 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Next.js build output
+.next
+out
+
+# Source control
+.git
+.gitignore
+
+# Environment files (injected at runtime)
+.env
+.env.*
+!.env.example
+
+# Development configs
+.eslintrc*
+.prettierrc*
+
+# Docker files (avoid recursive copy)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Test files
+e2e
+playwright-report
+playwright.config.ts
+test-results
+
+# CI/CD
+.github
+
+# Documentation
+*.md
+LICENSE
+
+# Editor configs
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
