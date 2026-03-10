@@ -77,6 +77,7 @@ components/admin/               # 新建：管理后台组件
   UserTable.tsx
   Charts.tsx
 lib/db/admin-queries.ts         # 新建：管理后台专用查询
+lib/db/admin-auth.ts            # 新建：admin 权限检查工具函数
 ```
 
 ### teammate-email 专属
@@ -97,18 +98,19 @@ app/api/auth/                   # 新建：auth 增强 API
 ```
 **例外权限**：teammate-email 可以修改以下已有文件（仅添加邮件发送调用）：
 - `app/(login)/actions.ts` — 在 inviteTeamMember 和 signUp 中添加发送邮件的调用
+- `app/(login)/login.tsx` — 添加「忘记密码？」链接（仅此一处改动）
 
 **Schema 规则**：不要直接修改 `lib/db/schema.ts`。将新表定义写在 `lib/db/email-schema.ts` 中，由 Lead 在集成阶段合并到主 schema。
 
 ### teammate-payments 专属
 ```
-lib/payments/                   # 重构已有目录
+lib/payments/                   # 新增文件，不动已有文件
   providers/
-    stripe.ts                   # 从已有 stripe.ts 重构
+    stripe.ts                   # 新建：包装已有 stripe.ts，不要修改原文件
     lemon-squeezy.ts            # 新建
   types.ts                      # 新建：PaymentProvider interface
   factory.ts                    # 新建：provider 工厂
-  actions.ts                    # 已有，需要重构
+注意：已有的 lib/payments/stripe.ts 和 lib/payments/actions.ts 保留不动，新代码通过 providers/ 和 factory.ts 封装它们。
 app/api/payments/               # 新建：通用支付 API
   checkout/route.ts
   webhook/route.ts

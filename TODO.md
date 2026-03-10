@@ -87,7 +87,7 @@
 - [ ] 创建 lib/email/send.ts — Resend 发送封装：
   - sendEmail(to, subject, reactComponent) 通用发送函数
   - 错误处理 + 日志
-- [ ] 在 .env 中添加 RESEND_API_KEY 占位
+- [ ] 确认 .env 中已有 RESEND_API_KEY 占位（Lead 已在 Phase 0 创建，不要自行修改 .env）
 - [ ] git commit "feat(email): email sending infrastructure"
 
 ### 2.2 邮件模板
@@ -105,7 +105,7 @@
 - [ ] 创建 app/api/auth/reset-password/route.ts — 验证 token + 更新密码
 - [ ] 创建 app/(login)/forgot-password/page.tsx — 忘记密码页面（输入邮箱）
 - [ ] 创建 app/(login)/reset-password/page.tsx — 重置密码页面（输入新密码）
-- [ ] 在 app/(login)/sign-in/page.tsx 或 login.tsx 添加「忘记密码？」链接
+- [ ] 在 app/(login)/login.tsx 添加「忘记密码？」链接（该文件已获得例外权限）
 - [ ] git commit "feat(email): forgot password flow"
 
 ### 2.4 接入已有流程
@@ -160,7 +160,7 @@
 - [ ] 如果改动导致已有 Stripe 流程报错，立即回退改动，保持原 pricing 页面不变
 - [ ] git commit "feat(payments): pricing page adapter"
 
-### 3.5 Payments 验证
+### 3.6 Payments 验证
 - [ ] 运行 npx tsc --noEmit
 - [ ] 运行 pnpm build
 - [ ] git commit "fix(payments): resolve any build errors"
@@ -242,7 +242,7 @@
   - 请求后记录用量
   - 流式响应（SSE）
 - [ ] 创建 app/api/ai/usage/route.ts — 查询用量统计 API
-- [ ] 在 .env 中添加 DEEPSEEK_API_KEY 和 DEEPSEEK_BASE_URL
+- [ ] 确认 .env 中已有 DEEPSEEK_API_KEY 和 DEEPSEEK_BASE_URL 占位（Lead 已在 Phase 0 创建，不要自行修改 .env）
 - [ ] git commit "feat(ai): chat endpoint with usage tracking"
 
 ### 5.5 用量 Dashboard 页面
