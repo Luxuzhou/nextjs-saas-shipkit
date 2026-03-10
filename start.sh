@@ -1,7 +1,7 @@
 #!/bin/bash
 # SaaS Starter Enhanced - Agent Teams 过夜构建启动脚本
 # 使用方式：cd D:/Projects/saas-starter-enhanced && bash start.sh
-# 特性：Ralph Loop 自动重启 + Smoke Test 路由验证
+# 特性：Ralph Loop 自动重启 + Smoke Test 路由验证 + 端口隔离
 
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
@@ -34,6 +34,20 @@ echo "✓ .env 文件存在"
 echo "完成标志：COMPLETE 文件出现在项目根目录"
 echo ""
 
+# 清理残留的 Node 开发服务器（防止端口占用）
+cleanup_dev_servers() {
+  echo "清理残留的开发服务器进程..."
+  # Windows: taskkill 关闭 node 进程中监听特定端口的
+  for port in 3001 3002 3003 3004 3005 3010; do
+    # 尝试通过 netstat 找到占用端口的 PID 并 kill
+    local pid=$(netstat -ano 2>/dev/null | grep ":${port}" | grep "LISTENING" | awk '{print $5}' | head -1)
+    if [ -n "$pid" ] && [ "$pid" != "0" ]; then
+      taskkill //F //PID "$pid" 2>/dev/null || kill "$pid" 2>/dev/null
+      echo "  已清理端口 ${port} 上的进程 (PID: ${pid})"
+    fi
+  done
+}
+
 MAX_LOOPS=5
 LOOP_COUNT=0
 
@@ -51,6 +65,9 @@ while [ $LOOP_COUNT -lt $MAX_LOOPS ]; do
     echo "检测到 COMPLETE 文件，任务已完成！"
     break
   fi
+
+  # 每轮开始前清理残留进程
+  cleanup_dev_servers
 
 claude --dangerously-skip-permissions -p "
 你是技术负责人（Lead Agent），今晚要在已有的 Next.js SaaS Starter 基础上完成 5 个增强模块。
@@ -70,42 +87,49 @@ claude --dangerously-skip-permissions -p "
 4. 所有 teammate 完成后才开始 Phase 6 集成
 5. 最终 pnpm build 必须成功 + smoke test 通过才能输出 COMPLETE
 
-## Smoke Test 规范（重要）
-每个 teammate 完成 pnpm build 后，以及 Phase 6 集成完成后，必须执行 smoke test：
+## Smoke Test 规范（重要 — 必须严格遵守端口分配）
+
+每个 teammate 和 Lead 使用不同端口运行 dev server，避免并行时端口冲突：
+- teammate-admin: PORT=3001
+- teammate-email: PORT=3002
+- teammate-payments: PORT=3003
+- teammate-i18n: PORT=3004
+- teammate-ai: PORT=3005
+- Phase 6 集成验证: PORT=3010
+
+Smoke test 标准流程（以 teammate-admin 端口 3001 为例）：
 \`\`\`bash
-# 启动 dev server（后台运行）
-pnpm dev &
+# 1. 确保端口干净（Windows 兼容写法）
+taskkill //F //PID \$(netstat -ano | grep ':3001' | grep 'LISTENING' | awk '{print \$5}' | head -1) 2>/dev/null || true
+
+# 2. 启动 dev server（指定端口，后台运行）
+PORT=3001 pnpm dev --port 3001 &
 DEV_PID=\$!
 
-# 等待服务器就绪（最多 30 秒）
+# 3. 等待服务器就绪（最多 30 秒）
 for i in \$(seq 1 30); do
-  curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 | grep -q '200' && break
+  if curl -s -o /dev/null -w '%{http_code}' http://localhost:3001 2>/dev/null | grep -qE '200|302|307'; then
+    break
+  fi
   sleep 1
 done
 
-# 验证路由（根据模块不同验证不同路由）
-# teammate-admin 验证：
-curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/admin
+# 4. 验证路由（替换为你负责的路由）
+SMOKE_RESULT=\$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/admin)
+echo \"Smoke test /admin: HTTP \$SMOKE_RESULT\"
 
-# teammate-email 验证：
-curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/forgot-password
-
-# teammate-ai 验证：
-curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/dashboard/usage
-
-# teammate-i18n 验证：
-curl -s -o /dev/null -w '%{http_code}' http://localhost:3000
-
-# teammate-payments 验证：
-curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/payments/checkout
-
-# 关闭 dev server
+# 5. 强制关闭 dev server（确保进程不残留）
 kill \$DEV_PID 2>/dev/null
-wait \$DEV_PID 2>/dev/null
+# Windows 下 kill 可能不彻底，用 taskkill 兜底
+taskkill //F //PID \$DEV_PID 2>/dev/null || true
+# 等待进程退出
+sleep 2
 \`\`\`
-注意：
-- 某些路由可能返回 302（重定向到登录）或 401，这是正常的，只要不是 500 就算通过
-- 如果返回 500，说明页面有运行时错误，必须修复后才能 commit
+
+判断标准：
+- HTTP 200, 302, 307, 401 = 通过（302/307 是登录重定向，401 是未授权，均属正常）
+- HTTP 500 = 失败，必须修复后重新验证
+- HTTP 000 或连接拒绝 = 服务器未启动成功，检查端口和启动日志
 - smoke test 失败不要跳过，要定位问题并修复
 
 ## Phase 0: 你先做
@@ -134,7 +158,7 @@ wait \$DEV_PID 2>/dev/null
 4. Pricing 页面适配是低优先级，如果改动导致已有 Stripe 流程报错立即回退
 5. 不要自行 pnpm add，依赖已统一安装
 6. 完成后运行 npx tsc --noEmit 和 pnpm build
-7. Smoke test：pnpm dev 启动后 curl http://localhost:3000/api/payments/checkout 确认不返回 500，然后关闭 dev server
+7. Smoke test：用端口 3003，验证 http://localhost:3003/api/payments/checkout 不返回 500
 
 ### teammate-admin（管理后台）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 1。你负责创建完整的管理后台，包括数据看板（带 recharts 图表）、用户管理、活动日志、订阅管理。
@@ -142,7 +166,7 @@ wait \$DEV_PID 2>/dev/null
 1. Admin 权限用邮箱白名单方式（ADMIN_EMAILS 常量），不要改动已有 schema 添加 isAdmin 字段
 2. 严格只创建和编辑 CLAUDE.md 中你的专属文件
 3. 完成后运行 npx tsc --noEmit 和 pnpm build
-4. Smoke test：pnpm dev 启动后 curl http://localhost:3000/admin 确认不返回 500，然后关闭 dev server
+4. Smoke test：用端口 3001，验证 http://localhost:3001/admin 不返回 500
 
 ### teammate-email（邮件系统 + Auth 增强）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 2。你负责搭建 Resend 邮件系统、创建 React Email 模板、实现忘记密码完整流程。
@@ -151,7 +175,7 @@ wait \$DEV_PID 2>/dev/null
 2. **禁止修改 lib/db/schema.ts**，将新表定义写在 lib/db/email-schema.ts 中
 3. 不要自行 pnpm add，依赖已统一安装
 4. 完成后运行 npx tsc --noEmit 和 pnpm build
-5. Smoke test：pnpm dev 启动后 curl http://localhost:3000/forgot-password 确认不返回 500，然后关闭 dev server
+5. Smoke test：用端口 3002，验证 http://localhost:3002/forgot-password 不返回 500
 
 ### teammate-i18n（国际化）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 4。你负责搭建 next-intl 国际化系统。
@@ -160,7 +184,7 @@ wait \$DEV_PID 2>/dev/null
 2. **禁止修改已有页面**，只对你新建的文件使用翻译函数
 3. 不要自行 pnpm add，依赖已统一安装
 4. 完成后运行 npx tsc --noEmit 和 pnpm build
-5. Smoke test：pnpm dev 启动后 curl http://localhost:3000 确认不返回 500，然后关闭 dev server
+5. Smoke test：用端口 3004，验证 http://localhost:3004 不返回 500
 
 ### teammate-ai（AI 用量追踪）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 5。你负责创建 AI 用量追踪和计费系统。
@@ -170,7 +194,7 @@ wait \$DEV_PID 2>/dev/null
 3. 示例 AI 聊天端点用 openai SDK 调 DeepSeek（baseURL: https://api.deepseek.com, model: deepseek-chat）
 4. 不要自行 pnpm add，依赖已统一安装
 5. 完成后运行 npx tsc --noEmit 和 pnpm build
-6. Smoke test：pnpm dev 启动后 curl http://localhost:3000/dashboard/usage 确认不返回 500，然后关闭 dev server
+6. Smoke test：用端口 3005，验证 http://localhost:3005/dashboard/usage 不返回 500
 
 ## Phase 6: 集成验证（你负责）
 等所有 teammate 完成后：
@@ -181,15 +205,15 @@ wait \$DEV_PID 2>/dev/null
 5. 有错误就定位并指派对应 teammate 修复
 6. 确认导航互通（顶部导航 + 各侧边栏）
 7. 反复修复直到 pnpm build 成功
-8. 全量 Smoke Test：
-   pnpm dev 启动后依次验证以下路由不返回 500：
-   - http://localhost:3000（首页）
-   - http://localhost:3000/sign-in（登录页）
-   - http://localhost:3000/pricing（定价页）
-   - http://localhost:3000/admin（管理后台）
-   - http://localhost:3000/forgot-password（忘记密码）
-   - http://localhost:3000/dashboard/usage（用量页面）
-   验证完毕后关闭 dev server。
+8. 全量 Smoke Test（用端口 3010）：
+   PORT=3010 pnpm dev --port 3010 启动后依次验证以下路由不返回 500：
+   - http://localhost:3010（首页）
+   - http://localhost:3010/sign-in（登录页）
+   - http://localhost:3010/pricing（定价页）
+   - http://localhost:3010/admin（管理后台）
+   - http://localhost:3010/forgot-password（忘记密码）
+   - http://localhost:3010/dashboard/usage（用量页面）
+   验证完毕后关闭 dev server（kill + taskkill 兜底）。
    如果有 500 错误，修复后重新验证。
 9. 所有验证通过后：
    - git commit 'feat: integration complete - all modules verified'
@@ -202,6 +226,9 @@ wait \$DEV_PID 2>/dev/null
 
   echo ""
   echo "第 ${LOOP_COUNT} 轮执行结束，时间: $(date)"
+
+  # 每轮结束后清理残留进程
+  cleanup_dev_servers
 
   # 检查是否完成
   if [ -f COMPLETE ]; then
