@@ -45,8 +45,8 @@ export function SignupChart({ data }: SignupChartProps) {
             />
             <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
             <Tooltip
-              formatter={(value: number) => [value, 'Signups']}
-              labelFormatter={(label: string) => `Date: ${label}`}
+              formatter={(value) => [value, 'Signups']}
+              labelFormatter={(label) => `Date: ${String(label)}`}
             />
             <Line
               type="monotone"
@@ -87,7 +87,7 @@ export function SubscriptionBar({ active, trialing, canceled }: SubscriptionBarP
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="status" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-            <Tooltip formatter={(value: number) => [value, 'Teams']} />
+            <Tooltip formatter={(value) => [value, 'Teams']} />
             <Bar dataKey="count" fill="#f97316" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
