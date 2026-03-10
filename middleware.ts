@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { signToken, verifyToken } from '@/lib/auth/session';
-import { intlMiddleware } from '@/lib/i18n/middleware';
 
 const protectedRoutes = ['/dashboard'];
 
@@ -17,13 +16,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
-  // Run i18n middleware to handle locale detection/negotiation
-  let res: NextResponse;
-  try {
-    res = intlMiddleware(request) as NextResponse;
-  } catch {
-    res = NextResponse.next();
-  }
+  let res = NextResponse.next();
 
   // Session refresh on GET requests
   if (sessionCookie && request.method === 'GET') {
