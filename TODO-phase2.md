@@ -1,6 +1,7 @@
-# TODO - SaaS Starter Enhanced Phase 2
+# TODO - SaaS Starter Enhanced Phase 2 + 3
 
-第二轮增强：多租户 RBAC、完整计费、通知系统、插件市场、合规导出。
+第二轮：多租户 RBAC、完整计费、通知系统、插件市场、合规导出。
+第三轮：E2E 测试、AI 智能助手、实时协作、CI/CD 部署。
 每个任务完成后将 [ ] 改为 [x] 并 git commit。开始任务前先读取此文件和 CLAUDE.md。
 
 ---
@@ -329,5 +330,282 @@
   - http://localhost:3010/dashboard/usage（用量页面，确认未被破坏）
 - [ ] 如果有 500 错误，修复后重新验证
 - [ ] git commit "feat: phase 2 integration complete - all modules verified"
-- [ ] echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark phase 2 complete'
+- [ ] 不要创建 COMPLETE 文件，继续 Phase 14
+
+---
+
+## Phase 14: 初始化第三轮（Lead Agent 负责）
+
+- [ ] 安装新增依赖（teammate 禁止自行安装）：
+  ```bash
+  pnpm add -D playwright @playwright/test
+  npx playwright install chromium
+  ```
+- [ ] 创建目录结构：
+  ```
+  mkdir -p lib/ai-assistant app/api/ai/assistant app/api/ai/analyze
+  mkdir -p app/\(dashboard\)/dashboard/ai-assistant
+  mkdir -p components/ai-assistant
+  mkdir -p e2e
+  mkdir -p .github/workflows
+  mkdir -p docker
+  ```
+- [ ] git commit "chore: phase 3 setup"
+- [ ] 分配 4 个 teammate（Phase 15-18）
+
+---
+
+## Phase 15: E2E 测试套件（teammate-e2e）
+
+### 15.1 Playwright 配置
+- [ ] 创建 playwright.config.ts：
+  - baseURL: http://localhost:3000
+  - projects: chromium only（减少复杂度）
+  - webServer: 自动启动 pnpm dev
+  - timeout: 30 秒
+  - retries: 1
+- [ ] 创建 e2e/helpers/auth.ts — 测试辅助函数：
+  - createTestUser(page, email, password) — 注册测试用户
+  - loginAs(page, email, password) — 登录
+  - logout(page) — 登出
+- [ ] git commit "feat(e2e): playwright config and helpers"
+
+### 15.2 认证流程测试
+- [ ] 创建 e2e/auth.spec.ts：
+  - 测试注册新账户（填表 → 提交 → 重定向到 dashboard）
+  - 测试登录已有账户
+  - 测试登出
+  - 测试未登录访问 /dashboard 被重定向到 /sign-in
+  - 测试错误密码显示错误提示
+- [ ] git commit "feat(e2e): auth flow tests"
+
+### 15.3 Dashboard 功能测试
+- [ ] 创建 e2e/dashboard.spec.ts：
+  - 测试 dashboard 各 tab 切换（General / Security / Activity / Usage）
+  - 测试修改用户名
+  - 测试 sidebar 导航跳转
+- [ ] 创建 e2e/pricing.spec.ts：
+  - 测试定价页面加载
+  - 测试套餐卡片显示
+- [ ] git commit "feat(e2e): dashboard and pricing tests"
+
+### 15.4 新功能页面测试
+- [ ] 创建 e2e/forgot-password.spec.ts：
+  - 测试忘记密码页面加载
+  - 测试提交邮箱（不验证邮件发送，只验证 UI 流程）
+- [ ] 创建 e2e/admin.spec.ts：
+  - 测试非 admin 用户访问 /admin 被重定向
+  - 测试 admin 用户能看到数据看板
+  - 测试用户列表分页
+  - 测试活动日志加载
+- [ ] 创建 e2e/billing.spec.ts：
+  - 测试 billing 页面加载
+  - 测试套餐信息展示
+- [ ] 创建 e2e/notifications.spec.ts：
+  - 测试通知页面加载
+  - 测试标记已读
+- [ ] 创建 e2e/integrations.spec.ts：
+  - 测试集成市场页面加载
+  - 测试插件卡片展示
+- [ ] git commit "feat(e2e): new feature page tests"
+
+### 15.5 E2E 验证
+- [ ] 运行 npx playwright test --reporter=list 确认测试能执行（部分测试可能因数据库空状态失败，但不能有语法错误或配置错误）
+- [ ] git commit "fix(e2e): resolve any test issues"
+
+---
+
+## Phase 16: AI 智能助手（teammate-ai-assistant）
+
+### 16.1 AI 助手核心逻辑
+- [ ] 创建 lib/ai-assistant/types.ts：
+  - Conversation, Message（role, content, timestamp）, AssistantCapability
+  - AnalysisRequest, AnalysisResult
+  - StreamChunk 类型（用于 SSE 流式输出）
+- [ ] 创建 lib/ai-assistant/conversation-manager.ts：
+  - createConversation(userId, teamId) — 创建新对话
+  - addMessage(conversationId, role, content) — 添加消息
+  - getConversationHistory(conversationId, limit) — 获取对话历史
+  - listConversations(userId) — 列出用户的所有对话
+  - deleteConversation(conversationId) — 删除对话
+  - 注意：对话历史存在内存中（Map），不需要新建数据库表。生产环境可以迁移到 Redis/DB，当前是 MVP。
+- [ ] 创建 lib/ai-assistant/system-prompts.ts：
+  - ASSISTANT_SYSTEM_PROMPT: 通用 SaaS 助手提示词（帮助用户理解平台功能、分析数据、回答问题）
+  - ANALYSIS_SYSTEM_PROMPT: 数据分析专用提示词
+  - 提示词中包含平台功能描述，让 AI 能回答"如何修改密码"、"怎么看账单"等问题
+- [ ] git commit "feat(ai-assistant): core logic"
+
+### 16.2 AI 助手 API
+- [ ] 创建 app/api/ai/assistant/route.ts — 对话 API：
+  - POST: 发送消息并获取 AI 回复（流式 SSE 响应）
+  - 使用 openai SDK 调 DeepSeek（已有配置）
+  - 请求前检查 quota（复用 lib/ai/rate-limiter.ts）
+  - 请求后记录用量（复用 lib/ai/usage-tracker.ts）
+  - **环境变量降级**：DEEPSEEK_API_KEY 为空时返回 503
+- [ ] 创建 app/api/ai/assistant/conversations/route.ts：
+  - GET: 列出对话
+  - POST: 创建新对话
+  - DELETE: 删除对话
+- [ ] 创建 app/api/ai/analyze/route.ts — 数据分析 API：
+  - POST: 接收分析请求（如"本月用量趋势如何"），查询相关数据，让 AI 生成分析报告
+  - 流式返回分析结果
+- [ ] git commit "feat(ai-assistant): API routes"
+
+### 16.3 AI 助手页面
+- [ ] 创建 app/(dashboard)/dashboard/ai-assistant/page.tsx：
+  - 左侧：对话列表（可新建/删除对话）
+  - 右侧：聊天界面（消息气泡、流式打字效果）
+  - 底部：输入框 + 发送按钮
+  - 顶部：模型显示（DeepSeek Chat）+ token 用量提示
+- [ ] 创建 components/ai-assistant/ChatMessage.tsx — 消息气泡（区分用户/AI，AI 消息支持 Markdown 渲染）
+- [ ] 创建 components/ai-assistant/ChatInput.tsx — 输入框（支持 Enter 发送、Shift+Enter 换行、发送中禁用）
+- [ ] 创建 components/ai-assistant/ConversationList.tsx — 对话列表侧边栏
+- [ ] 创建 components/ai-assistant/StreamingText.tsx — 流式文本显示组件（逐字出现效果）
+- [ ] git commit "feat(ai-assistant): chat UI page"
+
+### 16.4 AI 助手验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] Smoke test：端口 3006，验证 /dashboard/ai-assistant 不返回 500
+- [ ] git commit "fix(ai-assistant): resolve any build errors"
+
+---
+
+## Phase 17: 实时协作功能（teammate-realtime）
+
+### 17.1 实时状态核心
+- [ ] 创建 lib/realtime/types.ts：
+  - PresenceStatus: online, away, offline
+  - UserPresence: userId, status, lastSeen, currentPage
+  - RealtimeEvent: presence_update, notification_new, team_activity
+- [ ] 创建 lib/realtime/presence-manager.ts：
+  - 使用内存 Map 管理在线状态（MVP 阶段不需要 Redis）
+  - updatePresence(userId, status, currentPage) — 更新用户状态
+  - getTeamPresence(teamId) — 获取团队在线成员
+  - getOnlineCount(teamId) — 在线人数
+  - heartbeat(userId) — 心跳，超过 60 秒无心跳标记为 offline
+  - cleanupStale() — 清理过期状态
+- [ ] 创建 lib/realtime/event-bus.ts：
+  - 简单的发布订阅模式（内存实现）
+  - subscribe(channel, callback) — 订阅频道
+  - publish(channel, event) — 发布事件
+  - unsubscribe(channel, callback) — 取消订阅
+  - 频道命名：team:{teamId}:presence, team:{teamId}:notifications, team:{teamId}:activity
+- [ ] git commit "feat(realtime): presence manager and event bus"
+
+### 17.2 实时 API
+- [ ] 创建 app/api/realtime/presence/route.ts：
+  - POST: 更新自己的在线状态 + 当前页面
+  - GET: 获取团队成员在线状态列表
+- [ ] 创建 app/api/realtime/events/route.ts — SSE 端点：
+  - GET: 返回 Server-Sent Events 流
+  - 客户端连接后订阅团队频道
+  - 推送事件：成员上线/下线、新通知、团队活动
+  - 连接断开时自动取消订阅和清理
+- [ ] 创建 app/api/realtime/heartbeat/route.ts：
+  - POST: 客户端每 30 秒发一次心跳
+- [ ] git commit "feat(realtime): SSE and presence API"
+
+### 17.3 实时 UI 组件
+- [ ] 创建 components/realtime/OnlineIndicator.tsx — 在线状态圆点（绿色=在线，黄色=离开，灰色=离线）
+- [ ] 创建 components/realtime/TeamPresence.tsx — 团队在线成员列表（头像 + 状态 + 当前页面）
+- [ ] 创建 components/realtime/useRealtimeEvents.ts — React hook：
+  - 建立 SSE 连接到 /api/realtime/events
+  - 自动重连（断线后 3 秒重试）
+  - 定时发送心跳（30 秒）
+  - 返回 { events, isConnected, onlineMembers }
+- [ ] 创建 components/realtime/RealtimeProvider.tsx — Context Provider：
+  - 包裹整个 dashboard，提供实时状态上下文
+  - 子组件通过 useRealtime() hook 消费
+- [ ] git commit "feat(realtime): UI components and hooks"
+
+### 17.4 实时验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] Smoke test：端口 3007，验证 /api/realtime/presence 不返回 500
+- [ ] git commit "fix(realtime): resolve any build errors"
+
+---
+
+## Phase 18: CI/CD + 部署配置（teammate-devops）
+
+### 18.1 GitHub Actions
+- [ ] 创建 .github/workflows/ci.yml：
+  - 触发：push to main, pull_request to main
+  - Jobs:
+    - lint-and-type-check: npx tsc --noEmit
+    - build: pnpm build
+    - e2e-test: 安装 playwright → pnpm build → npx playwright test（允许失败，设 continue-on-error: true，因为完整 E2E 需要数据库）
+  - Node 22, pnpm 缓存
+- [ ] 创建 .github/workflows/deploy-preview.yml：
+  - 触发：pull_request
+  - 使用 Vercel CLI 部署 preview
+  - 输出 preview URL 到 PR comment（用 TODO 标记 Vercel token 配置）
+- [ ] git commit "feat(devops): GitHub Actions CI pipeline"
+
+### 18.2 Docker 配置
+- [ ] 创建 Dockerfile：
+  - Multi-stage build（deps → build → runner）
+  - 基于 node:22-alpine
+  - 使用 pnpm 安装依赖
+  - standalone output mode
+  - 暴露 3000 端口
+- [ ] 创建 docker-compose.yml：
+  - 服务：app（Next.js）+ postgres（PostgreSQL 16）
+  - 环境变量通过 .env 文件注入
+  - postgres 数据持久化到 volume
+  - app 依赖 postgres 服务健康检查
+- [ ] 创建 docker/.dockerignore
+- [ ] git commit "feat(devops): Docker and docker-compose"
+
+### 18.3 Vercel 部署配置
+- [ ] 创建 vercel.json：
+  - framework: nextjs
+  - buildCommand: pnpm build
+  - installCommand: pnpm install
+  - 环境变量映射（从 Vercel Dashboard 设置，文件只做说明）
+- [ ] 更新 next.config.ts — 添加 output: 'standalone'（如果还没有）
+- [ ] 创建 scripts/setup-env.sh — 环境变量初始化脚本（交互式引导用户设置所有必要的 env vars）
+- [ ] git commit "feat(devops): Vercel config and setup script"
+
+### 18.4 DevOps 验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] 运行 docker build -t saas-starter . （如果 docker 可用，否则跳过）
+- [ ] git commit "fix(devops): resolve any build errors"
+
+---
+
+## Phase 19: 最终集成（Lead Agent 负责）
+
+### 19.1 Phase 3 Schema 合并（如果有新表）
+- [ ] 检查 Phase 15-18 是否有新的 schema 文件需要合并（AI 助手用内存存储，不需要新表）
+- [ ] 如有需要，合并到 schema.ts 并运行 pnpm db:generate && pnpm db:migrate
+
+### 19.2 导航更新
+- [ ] Dashboard 侧边栏添加：AI Assistant 导航项
+- [ ] 确认 Phase 2 添加的导航项（Billing / Notifications / Integrations）仍然正常
+- [ ] Admin 侧边栏确认 Roles / Compliance 正常
+
+### 19.3 全局验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] 全量 Smoke Test（端口 3010），验证所有路由不返回 500：
+  - http://localhost:3010（首页）
+  - http://localhost:3010/sign-in（登录页）
+  - http://localhost:3010/pricing（定价页）
+  - http://localhost:3010/admin（管理后台）
+  - http://localhost:3010/admin/roles（角色管理）
+  - http://localhost:3010/admin/compliance（合规管理）
+  - http://localhost:3010/dashboard/billing（计费页面）
+  - http://localhost:3010/dashboard/notifications（通知中心）
+  - http://localhost:3010/dashboard/integrations（集成市场）
+  - http://localhost:3010/dashboard/usage（用量页面）
+  - http://localhost:3010/dashboard/ai-assistant（AI 助手）
+  - http://localhost:3010/forgot-password（忘记密码）
+  - http://localhost:3010/api/realtime/presence（实时状态 API）
+- [ ] 修复所有 500 错误
+- [ ] 运行 npx playwright test --reporter=list（记录结果，允许部分失败）
+- [ ] git commit "feat: phase 2+3 integration complete - all modules verified"
+- [ ] echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark phase 2+3 complete'
 - [ ] 输出 COMPLETE

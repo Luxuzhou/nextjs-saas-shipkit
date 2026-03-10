@@ -123,10 +123,92 @@
    - http://localhost:3010/dashboard/integrations（集成市场）
    - http://localhost:3010/dashboard/usage（用量页面 — 确认未被破坏）
    如果有 500 错误，修复后重新验证。
-9. 所有验证通过后：
+9. Phase 2 验证通过后：
    - git commit 'feat: phase 2 integration complete - all modules verified'
-   - echo 'done' > COMPLETE
-   - git add COMPLETE && git commit -m 'chore: mark phase 2 complete'
-   - 输出 COMPLETE
+   - 不要创建 COMPLETE 文件，继续 Phase 14
+
+## Phase 14: 你继续做（第三轮初始化）
+1. 安装新依赖：pnpm add -D playwright @playwright/test && npx playwright install chromium
+2. 创建 TODO-phase2.md 中 Phase 14 列出的目录结构
+3. git commit "chore: phase 3 setup"
+4. 分配 4 个 teammate（Phase 15-18）
+
+### teammate-e2e（E2E 测试套件）— 用 Sonnet 模型
+指令：执行 TODO-phase2.md 中的 Phase 15。你负责用 Playwright 写全站 E2E 测试。
+关键原则：
+1. 先读懂项目的路由结构（app/ 目录下的所有 page.tsx）
+2. 测试文件全部放在 e2e/ 目录下
+3. 不要修改任何业务代码，只写测试
+4. 部分测试因数据库状态可能失败是预期的，但测试代码本身不能有语法错误
+5. playwright.config.ts 中 webServer 使用 pnpm dev
+6. 不要自行 pnpm add
+7. 完成后运行 npx tsc --noEmit 和 pnpm build（确认测试文件不影响构建）
+8. 运行 npx playwright test --reporter=list 验证测试能执行
+
+### teammate-ai-assistant（AI 智能助手）— 用 Opus 模型
+指令：执行 TODO-phase2.md 中的 Phase 16。你负责创建带流式输出的 AI 聊天助手。
+关键原则：
+1. 先读懂 lib/ai/（已有的 usage-tracker、rate-limiter、billing），对话 API 中要复用它们
+2. 先读懂 app/api/ai/chat/route.ts（已有的 chat 端点），了解 DeepSeek 调用方式
+3. **禁止修改 lib/ai/ 下的已有文件**，可以 import 复用
+4. 对话历史用内存 Map 存储（不需要新建数据库表）
+5. 流式响应用标准 Web Streams API（ReadableStream + TextEncoder），不要用第三方库
+6. **环境变量降级**：DEEPSEEK_API_KEY 为空时返回 503
+7. 页面在 app/(dashboard)/dashboard/ai-assistant/
+8. 不要自行 pnpm add
+9. 完成后运行 npx tsc --noEmit 和 pnpm build
+10. Smoke test：端口 3006，验证 /dashboard/ai-assistant 不返回 500
+
+### teammate-realtime（实时协作功能）— 用 Sonnet 模型
+指令：执行 TODO-phase2.md 中的 Phase 17。你负责创建实时在线状态和事件推送系统。
+关键原则：
+1. 使用 Server-Sent Events（SSE），不要用 WebSocket（Next.js App Router 原生支持 SSE，不支持 WS）
+2. 在线状态用内存 Map 管理（不需要新建数据库表）
+3. 事件总线用内存发布订阅模式
+4. API 路由在 app/api/realtime/
+5. UI 组件在 components/realtime/，不要自行添加到任何 layout，Lead 在集成阶段处理
+6. useRealtimeEvents hook 要处理 SSE 自动重连
+7. 不要自行 pnpm add
+8. 完成后运行 npx tsc --noEmit 和 pnpm build
+9. Smoke test：端口 3007，验证 /api/realtime/presence 不返回 500
+
+### teammate-devops（CI/CD + 部署）— 用 Sonnet 模型
+指令：执行 TODO-phase2.md 中的 Phase 18。你负责创建 GitHub Actions、Docker、Vercel 部署配置。
+关键原则：
+1. GitHub Actions CI 流水线必须包含 tsc + build 两个 job
+2. E2E test job 设 continue-on-error: true（因为需要数据库）
+3. Dockerfile 使用 multi-stage build + standalone output
+4. docker-compose.yml 包含 app + postgres 两个服务
+5. 不要修改 next.config.ts 除了添加 output: 'standalone'
+6. Vercel 部署配置用 vercel.json
+7. 不要自行 pnpm add
+8. 完成后运行 npx tsc --noEmit 和 pnpm build
+9. 如果 docker 命令可用，运行 docker build 验证；不可用则跳过
+
+## Phase 19: 最终集成（你负责）
+等所有 Phase 15-18 的 teammate 完成后：
+1. 检查是否有新 schema 需要合并（AI 助手和实时协作用内存存储，通常不需要）
+2. Dashboard 侧边栏添加 AI Assistant 导航项
+3. 运行 npx tsc --noEmit
+4. 运行 pnpm build
+5. 全量 Smoke Test（端口 3010），验证所有路由不返回 500：
+   - http://localhost:3010（首页）
+   - http://localhost:3010/sign-in（登录页）
+   - http://localhost:3010/pricing（定价页）
+   - http://localhost:3010/admin（管理后台）
+   - http://localhost:3010/admin/roles（角色管理）
+   - http://localhost:3010/admin/compliance（合规管理）
+   - http://localhost:3010/dashboard/billing（计费页面）
+   - http://localhost:3010/dashboard/notifications（通知中心）
+   - http://localhost:3010/dashboard/integrations（集成市场）
+   - http://localhost:3010/dashboard/usage（用量页面）
+   - http://localhost:3010/dashboard/ai-assistant（AI 助手）
+   - http://localhost:3010/forgot-password（忘记密码）
+   - http://localhost:3010/api/realtime/presence（实时状态）
+6. 修复所有 500 错误
+7. 运行 npx playwright test --reporter=list（记录结果，允许部分失败）
+8. git commit 'feat: phase 2+3 integration complete - all modules verified'
+9. echo 'done' > COMPLETE && git add COMPLETE && git commit -m 'chore: mark phase 2+3 complete'
+10. 输出 COMPLETE
 
 现在开始：先检查进度，再决定从哪里开始执行。
