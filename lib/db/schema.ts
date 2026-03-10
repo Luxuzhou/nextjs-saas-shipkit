@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   integer,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -140,3 +141,65 @@ export enum ActivityType {
   INVITE_TEAM_MEMBER = 'INVITE_TEAM_MEMBER',
   ACCEPT_INVITATION = 'ACCEPT_INVITATION',
 }
+
+// --- Email module tables (merged from lib/db/email-schema.ts) ---
+
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  used: boolean('used').notNull().default(false),
+});
+
+export const emailVerifications = pgTable('email_verifications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  email: varchar('email', { length: 255 }).notNull(),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  verifiedAt: timestamp('verified_at'),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type EmailVerification = typeof emailVerifications.$inferSelect;
+export type NewEmailVerification = typeof emailVerifications.$inferInsert;
+
+// --- AI module tables (merged from lib/db/ai-schema.ts) ---
+
+export const aiUsageLogs = pgTable('ai_usage_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  teamId: integer('team_id')
+    .references(() => teams.id),
+  model: varchar('model', { length: 100 }).notNull(),
+  inputTokens: integer('input_tokens').notNull().default(0),
+  outputTokens: integer('output_tokens').notNull().default(0),
+  cost: varchar('cost', { length: 50 }).notNull().default('0'),
+  endpoint: varchar('endpoint', { length: 255 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const aiQuotas = pgTable('ai_quotas', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .unique()
+    .references(() => teams.id),
+  plan: varchar('plan', { length: 50 }).notNull().default('free'),
+  monthlyTokenLimit: integer('monthly_token_limit').notNull().default(100000),
+  tokensUsed: integer('tokens_used').notNull().default(0),
+  resetAt: timestamp('reset_at').notNull(),
+});
+
+export type AIUsageLog = typeof aiUsageLogs.$inferSelect;
+export type NewAIUsageLog = typeof aiUsageLogs.$inferInsert;
+export type AIQuota = typeof aiQuotas.$inferSelect;
+export type NewAIQuota = typeof aiQuotas.$inferInsert;
