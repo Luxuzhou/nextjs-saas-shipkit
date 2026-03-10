@@ -133,6 +133,7 @@ sleep 2
 - smoke test 失败不要跳过，要定位问题并修复
 
 ## Phase 0: 你先做
+0. 运行 git config core.longpaths true（Windows 长路径支持）
 1. 读取已有代码的关键文件：
    - lib/db/schema.ts（了解已有数据模型）
    - lib/payments/stripe.ts（了解已有支付实现）
@@ -157,16 +158,18 @@ sleep 2
 3. Lemon Squeezy 不确定的 API 调用写好类型签名，内部标 TODO，不要瞎猜
 4. Pricing 页面适配是低优先级，如果改动导致已有 Stripe 流程报错立即回退
 5. 不要自行 pnpm add，依赖已统一安装
-6. 完成后运行 npx tsc --noEmit 和 pnpm build
-7. Smoke test：用端口 3003，验证 http://localhost:3003/api/payments/checkout 不返回 500
+6. **环境变量降级**：STRIPE_SECRET_KEY 可能是 placeholder，所有 Stripe API 调用必须 try-catch，key 无效时返回空数据不要 500。LEMON_SQUEEZY_API_KEY 可能为空，factory 默认选 Stripe。
+7. 完成后运行 npx tsc --noEmit 和 pnpm build
+8. Smoke test：用端口 3003，验证 http://localhost:3003/api/payments/checkout 不返回 500
 
 ### teammate-admin（管理后台）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 1。你负责创建完整的管理后台，包括数据看板（带 recharts 图表）、用户管理、活动日志、订阅管理。
 关键原则：
 1. Admin 权限用邮箱白名单方式（ADMIN_EMAILS 常量），不要改动已有 schema 添加 isAdmin 字段
 2. 严格只创建和编辑 CLAUDE.md 中你的专属文件
-3. 完成后运行 npx tsc --noEmit 和 pnpm build
-4. Smoke test：用端口 3001，验证 http://localhost:3001/admin 不返回 500
+3. **环境变量降级**：查询订阅数据时 Stripe API 可能失败（key 是 placeholder），用 try-catch 包裹，失败时显示空数据或提示信息，不要 500。
+4. 完成后运行 npx tsc --noEmit 和 pnpm build
+5. Smoke test：用端口 3001，验证 http://localhost:3001/admin 不返回 500
 
 ### teammate-email（邮件系统 + Auth 增强）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 2。你负责搭建 Resend 邮件系统、创建 React Email 模板、实现忘记密码完整流程。
@@ -174,8 +177,9 @@ sleep 2
 1. 你有例外权限修改 actions.ts（添加发送邮件调用）和 login.tsx（添加忘记密码链接）
 2. **禁止修改 lib/db/schema.ts**，将新表定义写在 lib/db/email-schema.ts 中
 3. 不要自行 pnpm add，依赖已统一安装
-4. 完成后运行 npx tsc --noEmit 和 pnpm build
-5. Smoke test：用端口 3002，验证 http://localhost:3002/forgot-password 不返回 500
+4. **环境变量降级**：RESEND_API_KEY 可能为空，sendEmail 函数在 key 为空时跳过发送，打印 console.warn，不要抛错。
+5. 完成后运行 npx tsc --noEmit 和 pnpm build
+6. Smoke test：用端口 3002，验证 http://localhost:3002/forgot-password 不返回 500
 
 ### teammate-i18n（国际化）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 4。你负责搭建 next-intl 国际化系统。
@@ -193,8 +197,9 @@ sleep 2
 2. 修改 dashboard/layout.tsx 时只添加 Usage 导航项，不要改动其他导航
 3. 示例 AI 聊天端点用 openai SDK 调 DeepSeek（baseURL: https://api.deepseek.com, model: deepseek-chat）
 4. 不要自行 pnpm add，依赖已统一安装
-5. 完成后运行 npx tsc --noEmit 和 pnpm build
-6. Smoke test：用端口 3005，验证 http://localhost:3005/dashboard/usage 不返回 500
+5. **环境变量降级**：DEEPSEEK_API_KEY 可能为空，chat 端点在 key 为空时返回 HTTP 503 + `{ error: "DEEPSEEK_API_KEY not configured" }`，不要 500。
+6. 完成后运行 npx tsc --noEmit 和 pnpm build
+7. Smoke test：用端口 3005，验证 http://localhost:3005/dashboard/usage 不返回 500
 
 ## Phase 6: 集成验证（你负责）
 等所有 teammate 完成后：

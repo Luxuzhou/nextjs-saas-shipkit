@@ -221,6 +221,18 @@ DEEPSEEK_API_KEY=      # DeepSeek API
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 ```
 
+## 并发安全规则
+- **禁止并行 pnpm build**：`.next/` 目录是共享的，多个 teammate 同时 `pnpm build` 会导致缓存损坏。每个 teammate 在运行 `pnpm build` 前不需要特殊处理，但如果构建失败并显示缓存错误，先运行 `rm -rf .next` 再重试。
+- **Smoke test 必须使用分配的端口**：每个 teammate 有专属端口（见 start.sh），禁止使用 3000 端口运行 dev server。
+- **Smoke test 后必须关闭 dev server**：`kill $PID` + `taskkill //F //PID $PID` 双重关闭，防止进程残留。
+
+## 环境变量降级策略
+以下环境变量可能为空或 placeholder，代码必须优雅处理：
+- `STRIPE_SECRET_KEY=sk_test_placeholder` → Stripe API 调用会失败。所有调用 Stripe SDK 的代码必须 try-catch，在 key 无效时返回空数据或友好错误，不要让页面 500。
+- `RESEND_API_KEY=`（空）→ 邮件发送函数在 key 为空时跳过发送，打印 console.warn，不要抛错。
+- `DEEPSEEK_API_KEY=`（空）→ AI 聊天端点在 key 为空时返回 `{ error: "DEEPSEEK_API_KEY not configured" }` 和 HTTP 503。
+- `LEMON_SQUEEZY_API_KEY=`（空）→ Lemon Squeezy provider 在 key 为空时所有方法抛出明确错误，factory 默认选 Stripe。
+
 ## 禁止事项
 - 禁止删除或重命名已有文件（除非是明确的重构迁移）
 - 禁止修改不属于自己的文件（除了上述例外权限）
