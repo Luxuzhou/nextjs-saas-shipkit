@@ -12,6 +12,7 @@ import {
   Menu,
   CircleIcon,
   ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { href: '/admin/users', icon: Users, label: 'Users' },
   { href: '/admin/activity', icon: Activity, label: 'Activity' },
   { href: '/admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+  { href: '/admin/compliance', icon: ShieldCheck, label: 'Compliance' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
