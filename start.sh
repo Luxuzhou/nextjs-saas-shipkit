@@ -56,7 +56,7 @@ claude --dangerously-skip-permissions -p "
    pnpm add recharts date-fns resend @react-email/components @react-email/render @lemonsqueezy/lemonsqueezy.js next-intl openai @tanstack/react-table
 5. 用 npx shadcn@latest add 安装需要的 UI 组件
 6. 创建 TODO.md 中列出的所有目录结构
-7. 创建 .env（如果不存在，用占位值）
+7. 确认 .env 已存在（如果不存在，参考 .env.example 创建，但不要覆盖已有的 .env）
 8. git commit 初始化
 
 ## 然后分配 5 个 teammate（Opus 做复杂模块，Sonnet 做标准模块）
@@ -81,7 +81,7 @@ claude --dangerously-skip-permissions -p "
 ### teammate-email（邮件系统 + Auth 增强）— 用 Sonnet 模型
 指令：执行 TODO.md 中的 Phase 2。你负责搭建 Resend 邮件系统、创建 React Email 模板、实现忘记密码完整流程。
 关键原则：
-1. 你有例外权限修改 actions.ts（添加发送邮件调用）
+1. 你有例外权限修改 actions.ts（添加发送邮件调用）和 login.tsx（添加忘记密码链接）
 2. **禁止修改 lib/db/schema.ts**，将新表定义写在 lib/db/email-schema.ts 中
 3. 不要自行 pnpm add，依赖已统一安装
 4. 完成后运行 npx tsc --noEmit 和 pnpm build

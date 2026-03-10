@@ -100,7 +100,7 @@
 
 ### 2.3 忘记密码流程
 - [ ] 创建 lib/db/email-schema.ts — 定义 passwordResetTokens 表（token, userId, expiresAt）和 emailVerifications 表。不要修改 lib/db/schema.ts，Lead 会在集成阶段合并。
-- [ ] 在 email-schema.ts 中直接用 Drizzle 的 pgTable 定义表，并导出供 API 路由使用（可以直接引用 drizzle client 操作这些表）
+- [ ] 在 email-schema.ts 中用 Drizzle 的 pgTable 定义表并导出。注意：这些表在 Phase 6 Lead 合并 schema 并运行迁移之前不会存在于数据库中。API 路由可以引用这些类型，代码能编译通过即可，运行时查询会失败是预期行为。
 - [ ] 创建 app/api/auth/forgot-password/route.ts — 生成重置 token + 发送邮件
 - [ ] 创建 app/api/auth/reset-password/route.ts — 验证 token + 更新密码
 - [ ] 创建 app/(login)/forgot-password/page.tsx — 忘记密码页面（输入邮箱）
@@ -191,7 +191,7 @@
 ### 4.3 语言切换组件
 - [ ] 创建 components/LocaleSwitcher.tsx — 语言切换下拉菜单（中文/English）
 - [ ] 修改 app/layout.tsx — 添加 NextIntlClientProvider
-- [ ] 将 LocaleSwitcher 添加到导航栏
+- [ ] 将 LocaleSwitcher 添加到 app/layout.tsx 中（你有该文件的例外权限，不要修改 app/(dashboard)/layout.tsx）
 - [ ] git commit "feat(i18n): locale switcher component"
 
 ### 4.4 注意事项
@@ -212,7 +212,7 @@
 - [ ] 创建 lib/db/ai-schema.ts — 定义以下表（不要修改 lib/db/schema.ts，Lead 会在集成阶段合并）：
   - aiUsageLogs（userId, teamId, model, inputTokens, outputTokens, cost, endpoint, createdAt）
   - aiQuotas（teamId, plan, monthlyTokenLimit, tokensUsed, resetAt）
-- [ ] 在 ai-schema.ts 中直接用 Drizzle 的 pgTable 定义表，并导出供 API 路由使用
+- [ ] 在 ai-schema.ts 中用 Drizzle 的 pgTable 定义表并导出。注意：这些表在 Phase 6 Lead 合并 schema 并运行迁移之前不会存在于数据库中。API 路由可以引用这些类型，代码能编译通过即可。
 - [ ] git commit "feat(ai): usage tracking schema"
 
 ### 5.2 用量追踪核心

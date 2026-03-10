@@ -91,6 +91,8 @@ lib/email/                      # 新建：邮件系统
     SubscriptionEmail.tsx
 app/(login)/forgot-password/    # 新建：忘记密码页面
   page.tsx
+app/(login)/reset-password/    # 新建：重置密码页面
+  page.tsx
 app/api/auth/                   # 新建：auth 增强 API
   forgot-password/route.ts
   reset-password/route.ts
@@ -212,6 +214,7 @@ AUTH_SECRET=           # JWT 签名密钥
 # 新增（已在 .env 中预设占位，teammate 不要自行修改 .env）
 RESEND_API_KEY=        # 邮件发送
 LEMON_SQUEEZY_API_KEY= # Lemon Squeezy
+LEMON_SQUEEZY_STORE_ID=
 LEMON_SQUEEZY_WEBHOOK_SECRET=
 PAYMENT_PROVIDER=stripe # 默认 stripe，可切换为 lemon-squeezy
 DEEPSEEK_API_KEY=      # DeepSeek API
