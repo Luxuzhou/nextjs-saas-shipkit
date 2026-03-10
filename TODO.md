@@ -33,12 +33,13 @@
 ## Phase 1: 管理后台（teammate-admin）
 
 ### 1.1 Admin 角色与权限
-- [ ] 在 lib/db/admin-queries.ts 创建管理员查询函数：
+- [ ] 创建 lib/db/admin-queries.ts，先定义管理员邮箱常量（硬编码 ADMIN_EMAILS = ['test@test.com']，MVP 阶段够用），提供 isAdmin(email) 检查函数
+- [ ] 在同一文件中创建管理员查询函数：
   - getAllUsers(page, pageSize) — 分页获取所有用户
   - getUserStats() — 用户总数、本月新增、活跃用户数
   - getSubscriptionStats() — MRR、付费用户数、转化率、churn
   - getAllActivityLogs(page, pageSize) — 全局活动日志
-- [ ] 创建 admin 权限检查中间件（检查用户 role === 'owner' 且 team 为系统默认团队，或新增 isAdmin 字段）
+- [ ] 创建 lib/db/admin-auth.ts — admin 权限检查工具函数：getAdminUser() 获取当前用户并验证是否为 admin，不是则抛错
 - [ ] git commit "feat(admin): admin queries and auth middleware"
 
 ### 1.2 Admin API 路由
@@ -136,30 +137,28 @@
 - [ ] git commit "feat(payments): payment provider interface"
 
 ### 3.2 Stripe Provider 重构
-- [ ] 创建 lib/payments/providers/stripe.ts — 将已有 stripe.ts 重构为实现 PaymentProvider 接口
-- [ ] 保留所有已有功能，只是封装成 class StripeProvider implements PaymentProvider
+- [ ] 创建 lib/payments/providers/stripe.ts — 将已有 lib/payments/stripe.ts 的函数封装为 class StripeProvider implements PaymentProvider
+- [ ] 重要：不要删除或修改原 lib/payments/stripe.ts，创建新文件包装它。原文件保留作为 fallback。
 - [ ] git commit "refactor(payments): stripe provider"
 
 ### 3.3 Lemon Squeezy Provider
 - [ ] 确认 @lemonsqueezy/lemonsqueezy.js 已由 Lead 安装（不要自行 pnpm add）
-- [ ] 创建 lib/payments/providers/lemon-squeezy.ts — 实现 PaymentProvider 接口：
-  - createCheckoutSession — 创建 Lemon Squeezy checkout
-  - handleWebhook — 处理 Lemon Squeezy webhook
-  - getProducts / getPrices — 获取产品和价格
-  - createCustomerPortalSession — Lemon Squeezy customer portal
-- [ ] 在 .env 中添加 LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZY_STORE_ID, LEMON_SQUEEZY_WEBHOOK_SECRET
+- [ ] 创建 lib/payments/providers/lemon-squeezy.ts — 实现 PaymentProvider 接口
+- [ ] 对于 Lemon Squeezy 的每个方法，如果不确定 SDK 用法，写好函数签名和类型，内部用 TODO 注释标记，不要瞎猜 API 调用
 - [ ] git commit "feat(payments): lemon squeezy provider"
 
-### 3.4 Provider 工厂 + 路由适配
-- [ ] 创建 lib/payments/factory.ts — 根据环境变量 PAYMENT_PROVIDER 返回对应 provider 实例
-- [ ] 创建 lib/payments/actions.ts（重构已有）— 使用 factory 获取 provider
-- [ ] 创建 app/api/payments/checkout/route.ts — 通用 checkout 路由
+### 3.4 Provider 工厂
+- [ ] 创建 lib/payments/factory.ts — 根据环境变量 PAYMENT_PROVIDER（默认 stripe）返回对应 provider 实例
+- [ ] 创建 app/api/payments/checkout/route.ts — 通用 checkout 路由（调用 factory 获取 provider）
 - [ ] 创建 app/api/payments/webhook/route.ts — 通用 webhook 路由
 - [ ] 创建 app/api/payments/portal/route.ts — 通用 portal 路由
+- [ ] git commit "feat(payments): provider factory and unified routes"
+
+### 3.5 Pricing 页面适配（低优先级，时间不够可跳过）
 - [ ] 修改 app/(dashboard)/pricing/page.tsx — 使用 provider 抽象层获取产品
 - [ ] 修改 app/(dashboard)/pricing/submit-button.tsx — 适配新 checkout 接口
-- [ ] 在 .env 中添加 PAYMENT_PROVIDER=stripe（默认值）
-- [ ] git commit "feat(payments): provider factory and route adapters"
+- [ ] 如果改动导致已有 Stripe 流程报错，立即回退改动，保持原 pricing 页面不变
+- [ ] git commit "feat(payments): pricing page adapter"
 
 ### 3.5 Payments 验证
 - [ ] 运行 npx tsc --noEmit

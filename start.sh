@@ -59,22 +59,49 @@ claude --dangerously-skip-permissions -p "
 7. 创建 .env（如果不存在，用占位值）
 8. git commit 初始化
 
-## 然后分配 5 个 teammate（全部用 Sonnet 模型）
+## 然后分配 5 个 teammate（Opus 做复杂模块，Sonnet 做标准模块）
 
-### teammate-admin（管理后台）
-指令：执行 TODO.md 中的 Phase 1。你负责创建完整的管理后台，包括数据看板（带 recharts 图表）、用户管理、活动日志、订阅管理。严格只创建和编辑 CLAUDE.md 中你的专属文件。完成后运行 npx tsc --noEmit 和 pnpm build 确认无错误。
+### teammate-payments（多支付抽象层）— 用 Opus 模型
+指令：执行 TODO.md 中的 Phase 3。你负责将已有的 Stripe 集成重构为 Provider 模式，并新增 Lemon Squeezy Provider。
+关键原则：
+1. 先读懂已有的 lib/payments/stripe.ts 和 lib/payments/actions.ts 的所有代码
+2. 不要删除或修改原 lib/payments/stripe.ts，创建新的 providers/stripe.ts 包装它
+3. Lemon Squeezy 不确定的 API 调用写好类型签名，内部标 TODO，不要瞎猜
+4. Pricing 页面适配是低优先级，如果改动导致已有 Stripe 流程报错立即回退
+5. 不要自行 pnpm add，依赖已统一安装
+6. 完成后运行 npx tsc --noEmit 和 pnpm build
 
-### teammate-email（邮件系统 + Auth 增强）
-指令：执行 TODO.md 中的 Phase 2。你负责搭建 Resend 邮件系统、创建 React Email 模板、实现忘记密码完整流程。你有例外权限修改 actions.ts（添加发送邮件调用）。**不要修改 lib/db/schema.ts**，将新表定义写在 lib/db/email-schema.ts 中。不要自行 pnpm add，依赖已统一安装。完成后运行 npx tsc --noEmit 和 pnpm build。
+### teammate-admin（管理后台）— 用 Sonnet 模型
+指令：执行 TODO.md 中的 Phase 1。你负责创建完整的管理后台，包括数据看板（带 recharts 图表）、用户管理、活动日志、订阅管理。
+关键原则：
+1. Admin 权限用邮箱白名单方式（ADMIN_EMAILS 常量），不要改动已有 schema 添加 isAdmin 字段
+2. 严格只创建和编辑 CLAUDE.md 中你的专属文件
+3. 完成后运行 npx tsc --noEmit 和 pnpm build
 
-### teammate-payments（多支付抽象层）
-指令：执行 TODO.md 中的 Phase 3。你负责将已有的 Stripe 集成重构为 Provider 模式，并新增 Lemon Squeezy Provider。这是最有技术深度的模块——定义好 PaymentProvider interface，然后让 Stripe 和 Lemon Squeezy 都实现它，通过 factory 模式切换。修改 pricing 页面适配新接口。完成后运行 npx tsc --noEmit 和 pnpm build。
+### teammate-email（邮件系统 + Auth 增强）— 用 Sonnet 模型
+指令：执行 TODO.md 中的 Phase 2。你负责搭建 Resend 邮件系统、创建 React Email 模板、实现忘记密码完整流程。
+关键原则：
+1. 你有例外权限修改 actions.ts（添加发送邮件调用）
+2. **禁止修改 lib/db/schema.ts**，将新表定义写在 lib/db/email-schema.ts 中
+3. 不要自行 pnpm add，依赖已统一安装
+4. 完成后运行 npx tsc --noEmit 和 pnpm build
 
-### teammate-i18n（国际化）
-指令：执行 TODO.md 中的 Phase 4。你负责搭建 next-intl 国际化系统。**重要：禁止修改根 middleware.ts**，将 intl 中间件配置导出到 lib/i18n/middleware.ts，由 Lead 在 Phase 6 集成。**禁止修改已有页面**，只对你新建的文件使用翻译函数。不要自行 pnpm add，依赖已统一安装。完成后运行 npx tsc --noEmit 和 pnpm build。
+### teammate-i18n（国际化）— 用 Sonnet 模型
+指令：执行 TODO.md 中的 Phase 4。你负责搭建 next-intl 国际化系统。
+关键原则：
+1. **禁止修改根 middleware.ts**，将 intl 中间件配置导出到 lib/i18n/middleware.ts
+2. **禁止修改已有页面**，只对你新建的文件使用翻译函数
+3. 不要自行 pnpm add，依赖已统一安装
+4. 完成后运行 npx tsc --noEmit 和 pnpm build
 
-### teammate-ai（AI 用量追踪）
-指令：执行 TODO.md 中的 Phase 5。你负责创建 AI 用量追踪和计费系统。**不要修改 lib/db/schema.ts**，将新表定义写在 lib/db/ai-schema.ts 中。用量追踪核心逻辑、速率限制、一个示例 AI 聊天端点（用 openai SDK 调 DeepSeek：baseURL https://api.deepseek.com, model deepseek-chat）、以及用量 Dashboard 页面（带 recharts 图表）。修改 dashboard/layout.tsx 时只添加 Usage 导航项，不要改动其他导航。不要自行 pnpm add，依赖已统一安装。完成后运行 npx tsc --noEmit 和 pnpm build。
+### teammate-ai（AI 用量追踪）— 用 Sonnet 模型
+指令：执行 TODO.md 中的 Phase 5。你负责创建 AI 用量追踪和计费系统。
+关键原则：
+1. **禁止修改 lib/db/schema.ts**，将新表定义写在 lib/db/ai-schema.ts 中
+2. 修改 dashboard/layout.tsx 时只添加 Usage 导航项，不要改动其他导航
+3. 示例 AI 聊天端点用 openai SDK 调 DeepSeek（baseURL: https://api.deepseek.com, model: deepseek-chat）
+4. 不要自行 pnpm add，依赖已统一安装
+5. 完成后运行 npx tsc --noEmit 和 pnpm build
 
 ## Phase 6: 集成验证（你负责）
 等所有 teammate 完成后：
