@@ -1,0 +1,281 @@
+# TODO - SaaS Starter Enhanced
+
+每个任务完成后将 [ ] 改为 [x] 并 git commit。开始任务前先读取此文件和 CLAUDE.md。
+
+---
+
+## Phase 0: 初始化（Lead Agent 负责）
+
+- [ ] 读取 CLAUDE.md 和 TODO.md 了解项目全貌
+- [ ] 读取已有代码结构：lib/db/schema.ts, lib/payments/stripe.ts, app/(login)/actions.ts, middleware.ts
+- [ ] 创建 .env 文件，填入占位值（参考 CLAUDE.md 环境变量部分和 .env.example）
+- [ ] 运行 pnpm install 确认依赖安装成功
+- [ ] 安装新增公共依赖：pnpm add recharts date-fns
+- [ ] 添加 shadcn 组件（如果还没有的话）：npx shadcn@latest add sheet separator switch progress tabs tooltip chart
+- [ ] 创建基础目录结构：
+  ```
+  mkdir -p app/(admin)/admin/{users,activity,subscriptions}
+  mkdir -p app/api/admin app/api/auth app/api/payments app/api/ai
+  mkdir -p app/(login)/forgot-password
+  mkdir -p app/(dashboard)/dashboard/usage
+  mkdir -p components/admin components/usage
+  mkdir -p lib/email/templates lib/ai lib/payments/providers lib/i18n
+  mkdir -p messages
+  ```
+- [ ] git commit "chore: project setup for enhancement"
+- [ ] 分配 5 个 teammate 并行开发（见下方各 Phase）
+
+---
+
+## Phase 1: 管理后台（teammate-admin）
+
+### 1.1 Admin 角色与权限
+- [ ] 在 lib/db/admin-queries.ts 创建管理员查询函数：
+  - getAllUsers(page, pageSize) — 分页获取所有用户
+  - getUserStats() — 用户总数、本月新增、活跃用户数
+  - getSubscriptionStats() — MRR、付费用户数、转化率、churn
+  - getAllActivityLogs(page, pageSize) — 全局活动日志
+- [ ] 创建 admin 权限检查中间件（检查用户 role === 'owner' 且 team 为系统默认团队，或新增 isAdmin 字段）
+- [ ] git commit "feat(admin): admin queries and auth middleware"
+
+### 1.2 Admin API 路由
+- [ ] GET /api/admin/stats — 返回用户统计 + 订阅统计 + MRR 数据
+- [ ] GET /api/admin/users — 分页用户列表（支持搜索）
+- [ ] GET /api/admin/activity — 全局活动日志
+- [ ] 所有路由添加 admin 权限校验
+- [ ] git commit "feat(admin): API routes"
+
+### 1.3 Admin 数据看板页面
+- [ ] 创建 app/(admin)/admin/layout.tsx — admin 布局（侧边栏：Overview / Users / Activity / Subscriptions）
+- [ ] 创建 app/(admin)/admin/page.tsx — 数据看板首页：
+  - 顶部 4 个 StatsCard（总用户、月新增、MRR、转化率）
+  - 用户增长折线图（最近 30 天，用 recharts）
+  - MRR 趋势图
+  - 最近活动列表（最新 10 条）
+- [ ] 创建 components/admin/StatsCard.tsx — 数据卡片（数值 + 环比变化 + 图标）
+- [ ] 创建 components/admin/Charts.tsx — 折线图/柱状图组件（基于 recharts）
+- [ ] git commit "feat(admin): dashboard overview page"
+
+### 1.4 用户管理页面
+- [ ] 创建 app/(admin)/admin/users/page.tsx — 用户列表表格：
+  - 列：头像、名称、邮箱、注册时间、团队、订阅状态、最后登录
+  - 支持搜索（按邮箱/名称）
+  - 支持分页
+- [ ] 创建 components/admin/UserTable.tsx — 用户表格组件
+- [ ] git commit "feat(admin): user management page"
+
+### 1.5 活动日志与订阅管理
+- [ ] 创建 app/(admin)/admin/activity/page.tsx — 全局活动日志（带筛选：按事件类型、按用户）
+- [ ] 创建 app/(admin)/admin/subscriptions/page.tsx — 订阅列表（团队名、套餐、状态、到期时间）
+- [ ] git commit "feat(admin): activity log and subscription pages"
+
+### 1.6 Admin 验证
+- [ ] 运行 npx tsc --noEmit 确认无类型错误
+- [ ] 运行 pnpm build 确认构建通过
+- [ ] git commit "fix(admin): resolve any build errors"
+
+---
+
+## Phase 2: 邮件系统 + Auth 增强（teammate-email）
+
+### 2.1 邮件基础设施
+- [ ] pnpm add resend @react-email/components @react-email/render
+- [ ] 创建 lib/email/send.ts — Resend 发送封装：
+  - sendEmail(to, subject, reactComponent) 通用发送函数
+  - 错误处理 + 日志
+- [ ] 在 .env 中添加 RESEND_API_KEY 占位
+- [ ] git commit "feat(email): email sending infrastructure"
+
+### 2.2 邮件模板
+- [ ] 创建 lib/email/templates/WelcomeEmail.tsx — 欢迎邮件（注册成功后发送）
+- [ ] 创建 lib/email/templates/ResetPasswordEmail.tsx — 密码重置邮件（含重置链接）
+- [ ] 创建 lib/email/templates/InvitationEmail.tsx — 团队邀请邮件（含邀请链接）
+- [ ] 创建 lib/email/templates/SubscriptionEmail.tsx — 订阅确认/到期提醒
+- [ ] 所有模板使用统一品牌样式（logo 占位、配色、页脚）
+- [ ] git commit "feat(email): email templates"
+
+### 2.3 忘记密码流程
+- [ ] 在 lib/db/schema.ts 添加 passwordResetTokens 表（token, userId, expiresAt）
+- [ ] 运行 pnpm db:generate && pnpm db:migrate 应用 schema 变更
+- [ ] 创建 app/api/auth/forgot-password/route.ts — 生成重置 token + 发送邮件
+- [ ] 创建 app/api/auth/reset-password/route.ts — 验证 token + 更新密码
+- [ ] 创建 app/(login)/forgot-password/page.tsx — 忘记密码页面（输入邮箱）
+- [ ] 创建 app/(login)/reset-password/page.tsx — 重置密码页面（输入新密码）
+- [ ] 在 app/(login)/sign-in/page.tsx 或 login.tsx 添加「忘记密码？」链接
+- [ ] git commit "feat(email): forgot password flow"
+
+### 2.4 接入已有流程
+- [ ] 修改 app/(login)/actions.ts 中的 signUp — 注册成功后发送欢迎邮件
+- [ ] 修改 app/(login)/actions.ts 中的 inviteTeamMember — 发送邀请邮件（替换已有的 TODO 注释）
+- [ ] git commit "feat(email): integrate with existing auth flows"
+
+### 2.5 Email 验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] git commit "fix(email): resolve any build errors"
+
+---
+
+## Phase 3: 多支付抽象层（teammate-payments）
+
+### 3.1 支付 Provider 接口定义
+- [ ] 创建 lib/payments/types.ts — 定义 PaymentProvider interface：
+  ```typescript
+  interface PaymentProvider {
+    createCheckoutSession(params: CheckoutParams): Promise<string>  // 返回 checkout URL
+    createCustomerPortalSession(customerId: string): Promise<string>
+    handleWebhook(body: string, signature: string): Promise<WebhookEvent>
+    getProducts(): Promise<Product[]>
+    getPrices(): Promise<Price[]>
+  }
+  ```
+- [ ] 定义通用类型：Product, Price, Subscription, WebhookEvent, CheckoutParams
+- [ ] git commit "feat(payments): payment provider interface"
+
+### 3.2 Stripe Provider 重构
+- [ ] 创建 lib/payments/providers/stripe.ts — 将已有 stripe.ts 重构为实现 PaymentProvider 接口
+- [ ] 保留所有已有功能，只是封装成 class StripeProvider implements PaymentProvider
+- [ ] git commit "refactor(payments): stripe provider"
+
+### 3.3 Lemon Squeezy Provider
+- [ ] pnpm add @lemonsqueezy/lemonsqueezy.js
+- [ ] 创建 lib/payments/providers/lemon-squeezy.ts — 实现 PaymentProvider 接口：
+  - createCheckoutSession — 创建 Lemon Squeezy checkout
+  - handleWebhook — 处理 Lemon Squeezy webhook
+  - getProducts / getPrices — 获取产品和价格
+  - createCustomerPortalSession — Lemon Squeezy customer portal
+- [ ] 在 .env 中添加 LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZY_STORE_ID, LEMON_SQUEEZY_WEBHOOK_SECRET
+- [ ] git commit "feat(payments): lemon squeezy provider"
+
+### 3.4 Provider 工厂 + 路由适配
+- [ ] 创建 lib/payments/factory.ts — 根据环境变量 PAYMENT_PROVIDER 返回对应 provider 实例
+- [ ] 创建 lib/payments/actions.ts（重构已有）— 使用 factory 获取 provider
+- [ ] 创建 app/api/payments/checkout/route.ts — 通用 checkout 路由
+- [ ] 创建 app/api/payments/webhook/route.ts — 通用 webhook 路由
+- [ ] 创建 app/api/payments/portal/route.ts — 通用 portal 路由
+- [ ] 修改 app/(dashboard)/pricing/page.tsx — 使用 provider 抽象层获取产品
+- [ ] 修改 app/(dashboard)/pricing/submit-button.tsx — 适配新 checkout 接口
+- [ ] 在 .env 中添加 PAYMENT_PROVIDER=stripe（默认值）
+- [ ] git commit "feat(payments): provider factory and route adapters"
+
+### 3.5 Payments 验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] git commit "fix(payments): resolve any build errors"
+
+---
+
+## Phase 4: 国际化 i18n（teammate-i18n）
+
+### 4.1 基础设施搭建
+- [ ] pnpm add next-intl
+- [ ] 创建 lib/i18n/config.ts — 支持的语言列表 + 默认语言
+- [ ] 创建 lib/i18n/request.ts — next-intl 的 getRequestConfig
+- [ ] 修改 next.config.ts — 添加 createNextIntlPlugin
+- [ ] 修改 middleware.ts — 集成 next-intl 中间件（注意：保留已有的 auth session 刷新逻辑，两个中间件合并）
+- [ ] git commit "feat(i18n): infrastructure setup"
+
+### 4.2 翻译文件
+- [ ] 创建 messages/en.json — 英文翻译：
+  - common（按钮、状态、导航）
+  - auth（登录、注册、忘记密码）
+  - dashboard（设置、安全、活动）
+  - pricing（套餐名称、功能描述）
+  - admin（管理后台所有文案）
+  - usage（AI 用量相关）
+- [ ] 创建 messages/zh.json — 中文翻译（对应 en.json 所有 key）
+- [ ] git commit "feat(i18n): translation files"
+
+### 4.3 语言切换组件
+- [ ] 创建 components/LocaleSwitcher.tsx — 语言切换下拉菜单（中文/English）
+- [ ] 修改 app/layout.tsx — 添加 NextIntlClientProvider
+- [ ] 将 LocaleSwitcher 添加到导航栏
+- [ ] git commit "feat(i18n): locale switcher component"
+
+### 4.4 国际化已有页面（如果时间允许）
+- [ ] Landing page (app/(dashboard)/page.tsx)
+- [ ] 登录/注册页面
+- [ ] Dashboard 页面
+- [ ] 定价页面
+- [ ] 如果时间不够，至少完成 Landing page 和登录页面，其余标记 TODO 留给后续
+- [ ] git commit "feat(i18n): internationalize existing pages"
+
+### 4.5 i18n 验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] git commit "fix(i18n): resolve any build errors"
+
+---
+
+## Phase 5: AI 用量追踪与计费（teammate-ai）
+
+### 5.1 数据模型
+- [ ] 在 lib/db/schema.ts 添加表：
+  - aiUsageLogs（userId, teamId, model, inputTokens, outputTokens, cost, endpoint, createdAt）
+  - aiQuotas（teamId, plan, monthlyTokenLimit, tokensUsed, resetAt）
+- [ ] 运行 pnpm db:generate && pnpm db:migrate
+- [ ] git commit "feat(ai): usage tracking schema"
+
+### 5.2 用量追踪核心
+- [ ] 创建 lib/ai/types.ts — AI 相关类型（UsageRecord, Quota, AIModel 等）
+- [ ] 创建 lib/ai/usage-tracker.ts：
+  - trackUsage(userId, teamId, model, inputTokens, outputTokens) — 记录用量
+  - getUsage(teamId, startDate, endDate) — 查询用量
+  - getMonthlyUsage(teamId) — 当月用量汇总
+  - getRemainingQuota(teamId) — 剩余配额
+- [ ] 创建 lib/ai/rate-limiter.ts：
+  - checkRateLimit(teamId) — 检查是否超出速率限制
+  - checkQuota(teamId, estimatedTokens) — 检查配额是否足够
+- [ ] git commit "feat(ai): usage tracker and rate limiter"
+
+### 5.3 AI 计费逻辑
+- [ ] 创建 lib/ai/billing.ts：
+  - calculateCost(model, inputTokens, outputTokens) — 根据模型计算费用
+  - getMonthlyBill(teamId) — 当月账单
+  - 支持不同定价模型：按量计费 / 包月额度
+- [ ] git commit "feat(ai): billing logic"
+
+### 5.4 示例 AI 端点
+- [ ] pnpm add openai
+- [ ] 创建 app/api/ai/chat/route.ts — 示例聊天 API：
+  - 使用 openai SDK 调 DeepSeek（baseURL: https://api.deepseek.com, model: deepseek-chat）
+  - 请求前检查配额
+  - 请求后记录用量
+  - 流式响应（SSE）
+- [ ] 创建 app/api/ai/usage/route.ts — 查询用量统计 API
+- [ ] 在 .env 中添加 DEEPSEEK_API_KEY 和 DEEPSEEK_BASE_URL
+- [ ] git commit "feat(ai): chat endpoint with usage tracking"
+
+### 5.5 用量 Dashboard 页面
+- [ ] 修改 app/(dashboard)/dashboard/layout.tsx — 侧边栏添加 "Usage" 导航项
+- [ ] 创建 app/(dashboard)/dashboard/usage/page.tsx — 用量页面：
+  - 当月用量环形进度条（已用/总配额）
+  - 按天用量柱状图（最近 30 天）
+  - 按模型用量饼图
+  - 费用明细表格
+- [ ] 创建 components/usage/UsageMeter.tsx — 用量仪表盘组件
+- [ ] 创建 components/usage/UsageChart.tsx — 用量图表组件
+- [ ] 创建 components/usage/PlanLimits.tsx — 套餐配额展示组件
+- [ ] git commit "feat(ai): usage dashboard page"
+
+### 5.6 AI 模块验证
+- [ ] 运行 npx tsc --noEmit
+- [ ] 运行 pnpm build
+- [ ] git commit "fix(ai): resolve any build errors"
+
+---
+
+## Phase 6: 集成与收尾（Lead Agent 负责）
+
+- [ ] 等待所有 5 个 teammate 完成
+- [ ] 运行 npx tsc --noEmit 检查全局类型错误
+- [ ] 运行 pnpm build 检查构建
+- [ ] 如果有错误，定位到具体模块，指派对应 teammate 修复
+- [ ] 确认各模块间的导航互通：
+  - 顶部导航能到 Dashboard、Pricing、Admin
+  - Dashboard 侧边栏能到 General、Security、Activity、Usage
+  - Admin 侧边栏能到 Overview、Users、Activity、Subscriptions
+- [ ] 确认 middleware 正确工作（auth 保护 + i18n 路由，不冲突）
+- [ ] 最终 pnpm build 成功
+- [ ] git commit "feat: integration complete"
+- [ ] 输出 COMPLETE
