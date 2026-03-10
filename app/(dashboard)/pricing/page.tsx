@@ -7,10 +7,16 @@ import { SubmitButton } from './submit-button';
 export const revalidate = 3600;
 
 export default async function PricingPage() {
-  const [prices, products] = await Promise.all([
-    getStripePrices(),
-    getStripeProducts(),
-  ]);
+  let prices: Awaited<ReturnType<typeof getStripePrices>> = [];
+  let products: Awaited<ReturnType<typeof getStripeProducts>> = [];
+  try {
+    [prices, products] = await Promise.all([
+      getStripePrices(),
+      getStripeProducts(),
+    ]);
+  } catch (err) {
+    console.warn('Stripe unavailable, showing default pricing:', err);
+  }
 
   const basePlan = products.find((product) => product.name === 'Base');
   const plusPlan = products.find((product) => product.name === 'Plus');
