@@ -531,3 +531,142 @@ export type DataExportRequest = typeof dataExportRequests.$inferSelect;
 export type NewDataExportRequest = typeof dataExportRequests.$inferInsert;
 export type DataRetentionPolicy = typeof dataRetentionPolicies.$inferSelect;
 export type NewDataRetentionPolicy = typeof dataRetentionPolicies.$inferInsert;
+
+// --- OAuth module tables (merged from lib/db/oauth-schema.ts) ---
+
+export const oauthAccounts = pgTable('oauth_accounts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  provider: varchar('provider', { length: 50 }).notNull(),
+  providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const twoFactorSecrets = pgTable('two_factor_secrets', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  secret: text('secret').notNull(),
+  enabled: boolean('enabled').notNull().default(false),
+  backupCodes: jsonb('backup_codes').$type<string[]>().notNull().default([]),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const oauthAccountsRelations = relations(oauthAccounts, ({ one }) => ({
+  user: one(users, { fields: [oauthAccounts.userId], references: [users.id] }),
+}));
+
+export const twoFactorSecretsRelations = relations(twoFactorSecrets, ({ one }) => ({
+  user: one(users, { fields: [twoFactorSecrets.userId], references: [users.id] }),
+}));
+
+export type OAuthAccount = typeof oauthAccounts.$inferSelect;
+export type NewOAuthAccount = typeof oauthAccounts.$inferInsert;
+export type TwoFactorSecret = typeof twoFactorSecrets.$inferSelect;
+export type NewTwoFactorSecret = typeof twoFactorSecrets.$inferInsert;
+
+// --- API Gateway module tables (merged from lib/db/api-gateway-schema.ts) ---
+
+export const apiKeys = pgTable('api_keys', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  name: varchar('name', { length: 100 }).notNull(),
+  keyHash: text('key_hash').notNull(),
+  prefix: varchar('prefix', { length: 12 }).notNull(),
+  permissions: jsonb('permissions').notNull().default([]),
+  rateLimit: integer('rate_limit').notNull().default(100),
+  lastUsedAt: timestamp('last_used_at'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const apiRequestLogs = pgTable('api_request_logs', {
+  id: serial('id').primaryKey(),
+  apiKeyId: integer('api_key_id')
+    .notNull()
+    .references(() => apiKeys.id),
+  method: varchar('method', { length: 10 }).notNull(),
+  path: varchar('path', { length: 500 }).notNull(),
+  statusCode: integer('status_code').notNull(),
+  latencyMs: integer('latency_ms').notNull(),
+  timestamp: timestamp('timestamp').notNull().defaultNow(),
+});
+
+export const apiKeysRelations = relations(apiKeys, ({ one, many }) => ({
+  team: one(teams, { fields: [apiKeys.teamId], references: [teams.id] }),
+  requestLogs: many(apiRequestLogs),
+}));
+
+export const apiRequestLogsRelations = relations(apiRequestLogs, ({ one }) => ({
+  apiKey: one(apiKeys, { fields: [apiRequestLogs.apiKeyId], references: [apiKeys.id] }),
+}));
+
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type NewApiKey = typeof apiKeys.$inferInsert;
+export type ApiRequestLog = typeof apiRequestLogs.$inferSelect;
+export type NewApiRequestLog = typeof apiRequestLogs.$inferInsert;
+
+// --- Analytics module tables (merged from lib/db/analytics-schema.ts) ---
+
+export const analyticsEvents = pgTable('analytics_events', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').references(() => teams.id),
+  userId: integer('user_id').references(() => users.id),
+  eventName: varchar('event_name', { length: 255 }).notNull(),
+  eventData: jsonb('event_data'),
+  sessionId: varchar('session_id', { length: 255 }),
+  pageUrl: text('page_url'),
+  referrer: text('referrer'),
+  userAgent: text('user_agent'),
+  timestamp: timestamp('timestamp').notNull().defaultNow(),
+});
+
+export const funnels = pgTable('funnels', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id')
+    .notNull()
+    .references(() => teams.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  steps: jsonb('steps').notNull().default([]),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const analyticsEventsRelations = relations(analyticsEvents, ({ one }) => ({
+  team: one(teams, { fields: [analyticsEvents.teamId], references: [teams.id] }),
+  user: one(users, { fields: [analyticsEvents.userId], references: [users.id] }),
+}));
+
+export const funnelsRelations = relations(funnels, ({ one }) => ({
+  team: one(teams, { fields: [funnels.teamId], references: [teams.id] }),
+}));
+
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;
+export type Funnel = typeof funnels.$inferSelect;
+export type NewFunnel = typeof funnels.$inferInsert;
+
+// --- Feature Flags module tables (merged from lib/db/feature-flags-schema.ts) ---
+
+export const featureFlags = pgTable('feature_flags', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 255 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  type: varchar('type', { length: 50 }).notNull().default('boolean'),
+  enabled: boolean('enabled').notNull().default(false),
+  rolloutPercentage: integer('rollout_percentage').default(0),
+  targetUserIds: jsonb('target_user_ids').default([]),
+  targetTeamIds: jsonb('target_team_ids').default([]),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type FeatureFlag = typeof featureFlags.$inferSelect;
+export type NewFeatureFlag = typeof featureFlags.$inferInsert;
