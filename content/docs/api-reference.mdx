@@ -1,0 +1,154 @@
+---
+title: API Reference
+description: REST API documentation with interactive Swagger UI
+order: 4
+---
+
+# API Reference
+
+The SaaS Starter Kit exposes a versioned REST API at `/api/v1/`. All endpoints require authentication via an **API key** passed in the `Authorization` header.
+
+## Authentication
+
+```http
+Authorization: Bearer saas_live_xxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+API keys can be created from **Dashboard → API Keys**.
+
+## Interactive Documentation
+
+Explore the full API interactively with Swagger UI:
+
+**[Open Swagger UI →](/dashboard/api-docs)**
+
+The Swagger UI provides:
+- Live request testing
+- Full schema documentation
+- Authentication support
+
+## Base URL
+
+```
+https://your-domain.com/api/v1
+```
+
+## Endpoints
+
+### Teams
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/teams` | Get current team info |
+| PATCH | `/api/v1/teams` | Update team name |
+
+#### GET /api/v1/teams
+
+```http
+GET /api/v1/teams HTTP/1.1
+Authorization: Bearer saas_live_...
+```
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "name": "My Team",
+  "plan": "pro",
+  "createdAt": "2024-01-01T00:00:00Z"
+}
+```
+
+### Members
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/members` | List team members |
+| DELETE | `/api/v1/members/:id` | Remove a member |
+
+### Activity
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/activity` | Get activity logs |
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `limit` | number | Max items (default 20, max 100) |
+| `offset` | number | Pagination offset |
+
+### Usage
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/usage` | Get AI token usage for current period |
+
+**Response:**
+
+```json
+{
+  "periodStart": "2024-01-01T00:00:00Z",
+  "periodEnd": "2024-02-01T00:00:00Z",
+  "tokensUsed": 45230,
+  "tokensLimit": 500000,
+  "costUsd": 0.09
+}
+```
+
+## Rate Limiting
+
+API requests are rate-limited per API key:
+
+| Plan | Requests / minute |
+|---|---|
+| Free | 60 |
+| Pro | 600 |
+| Enterprise | 6000 |
+
+When rate-limited, the API returns HTTP 429 with a `Retry-After` header.
+
+## Error Responses
+
+All errors follow a consistent format:
+
+```json
+{
+  "error": "Unauthorized",
+  "message": "Invalid or expired API key",
+  "statusCode": 401
+}
+```
+
+| Status Code | Meaning |
+|---|---|
+| 400 | Bad Request — invalid parameters |
+| 401 | Unauthorized — missing or invalid API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Not Found |
+| 429 | Too Many Requests |
+| 500 | Internal Server Error |
+
+## SDKs
+
+Official client libraries are coming soon. For now, use any HTTP client:
+
+```typescript
+const response = await fetch('https://your-domain.com/api/v1/teams', {
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  },
+});
+const team = await response.json();
+```
+
+## OpenAPI Spec
+
+Download the OpenAPI 3.0 spec:
+
+```
+GET /api/v1/docs
+```

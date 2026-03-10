@@ -1,0 +1,98 @@
+---
+title: Getting Started
+description: Quick start guide for the SaaS Starter Kit
+order: 1
+---
+
+# Getting Started
+
+Welcome to the **SaaS Starter Enhanced** — a full-featured SaaS starter kit built for indie developers going global.
+
+## Prerequisites
+
+- Node.js 18+
+- pnpm 8+
+- PostgreSQL 14+ (or a managed database such as Supabase, Neon, or Railway)
+
+## Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/your-org/saas-starter-enhanced.git
+cd saas-starter-enhanced
+pnpm install
+```
+
+## Environment Setup
+
+Copy the example environment file and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Required variables:
+
+| Variable | Description |
+|---|---|
+| `POSTGRES_URL` | PostgreSQL connection string |
+| `AUTH_SECRET` | Random secret for JWT signing |
+| `STRIPE_SECRET_KEY` | Stripe API key |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret |
+| `BASE_URL` | Your app's base URL |
+
+## Database Setup
+
+Run migrations to create the database schema:
+
+```bash
+pnpm db:setup
+```
+
+Optionally, seed with demo data:
+
+```bash
+pnpm db:seed
+```
+
+## Start the Development Server
+
+```bash
+pnpm dev
+```
+
+The app will be available at [http://localhost:3000](http://localhost:3000).
+
+## First Steps
+
+1. **Sign up** — Go to `/sign-up` and create a new account.
+2. **Explore the Dashboard** — Visit `/dashboard` to see account settings, security options, and activity logs.
+3. **Set up billing** — Configure Stripe and visit `/pricing` to test subscriptions.
+4. **Enable optional modules** — See the module guides for AI usage, RBAC, notifications, and more.
+
+## Project Structure
+
+```
+app/
+  (dashboard)/      Landing page + user dashboard
+  (login)/          Sign-in / sign-up flows
+  (admin)/          Admin panel
+  api/              API routes
+  docs/             This documentation site
+lib/
+  auth/             JWT authentication
+  db/               Drizzle ORM schema & queries
+  payments/         Multi-provider payment abstraction
+  ai/               AI usage tracking & billing
+  rbac/             Role-based access control
+components/         Reusable React components
+content/docs/       MDX documentation files
+```
+
+## Next Steps
+
+- [Authentication](/docs/authentication) — Learn how auth works and how to extend it.
+- [Billing](/docs/billing) — Set up subscriptions and payment providers.
+- [API Reference](/docs/api-reference) — Explore the REST API.
+- [Deployment](/docs/deployment) — Deploy to Vercel or Docker.

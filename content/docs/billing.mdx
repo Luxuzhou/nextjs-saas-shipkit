@@ -1,0 +1,111 @@
+---
+title: Billing
+description: Subscription management, payment providers, and AI usage billing
+order: 3
+---
+
+# Billing
+
+The starter kit includes a multi-provider payment abstraction layer that supports **Stripe**, **Lemon Squeezy**, **Alipay**, and **WeChat Pay**.
+
+## Payment Providers
+
+### Stripe (default)
+
+Stripe is enabled by default. Configure it with:
+
+```env
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENT_PROVIDER=stripe
+```
+
+### Lemon Squeezy
+
+To switch to Lemon Squeezy:
+
+```env
+LEMON_SQUEEZY_API_KEY=...
+LEMON_SQUEEZY_STORE_ID=...
+LEMON_SQUEEZY_WEBHOOK_SECRET=...
+PAYMENT_PROVIDER=lemon-squeezy
+```
+
+### Alipay (支付宝)
+
+For Chinese market payments:
+
+```env
+ALIPAY_APP_ID=...
+ALIPAY_PRIVATE_KEY=...
+ALIPAY_PUBLIC_KEY=...
+ALIPAY_NOTIFY_URL=https://yourdomain.com/api/payments/alipay/notify
+PAYMENT_PROVIDER=alipay
+```
+
+### WeChat Pay (微信支付)
+
+For WeChat native QR-code payments:
+
+```env
+WECHAT_PAY_APP_ID=...
+WECHAT_PAY_MCH_ID=...
+WECHAT_PAY_API_KEY=...
+WECHAT_PAY_CERT_SERIAL=...
+WECHAT_PAY_PRIVATE_KEY=...
+PAYMENT_PROVIDER=wechat-pay
+```
+
+## Subscription Plans
+
+Plans are defined in `lib/billing/plans.ts`. Each plan maps to a Stripe Price ID (or equivalent in other providers).
+
+### Available Plans
+
+| Plan | Price | AI Tokens | API Calls |
+|---|---|---|---|
+| Free | $0/mo | 10,000 | 1,000 |
+| Pro | $29/mo | 500,000 | 50,000 |
+| Enterprise | Custom | Unlimited | Unlimited |
+
+### Changing Plans
+
+Users can upgrade or downgrade from **Dashboard → Billing**. For Stripe, this opens the Stripe Customer Portal. For other providers, the portal is embedded in the dashboard.
+
+## Invoices
+
+Invoices are stored in the `invoices` table and can be downloaded from **Dashboard → Billing → Invoice History**.
+
+## AI Usage Billing
+
+The AI module tracks token usage per user. Overages beyond the plan limit are billed at:
+
+- GPT-4 equivalent: $0.002 per 1,000 tokens
+- GPT-3.5 equivalent: $0.0002 per 1,000 tokens
+
+Usage resets on the billing cycle start date.
+
+### Viewing Usage
+
+Visit **Dashboard → Usage** to see:
+
+- Token consumption this period
+- Cost breakdown by model
+- Usage trend chart
+
+## Webhooks
+
+All providers send webhook events to notify of subscription changes.
+
+| Provider | Endpoint |
+|---|---|
+| Stripe | `/api/stripe/webhook` |
+| Lemon Squeezy | `/api/payments/webhook` |
+| Alipay | `/api/payments/alipay/notify` |
+| WeChat Pay | `/api/payments/wechat-pay/notify` |
+
+Ensure webhook secrets are configured correctly to validate event signatures.
+
+## QR Code Payments
+
+Alipay and WeChat Pay show a QR code for the user to scan. The `QRCodePayment` component in `components/billing/` handles this flow with automatic polling for payment confirmation.

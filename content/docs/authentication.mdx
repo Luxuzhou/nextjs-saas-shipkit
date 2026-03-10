@@ -1,0 +1,103 @@
+---
+title: Authentication
+description: How the authentication system works and how to extend it
+order: 2
+---
+
+# Authentication
+
+The starter kit uses a custom JWT-based authentication system built with **jose** and **bcryptjs**, storing sessions in an httpOnly cookie. No third-party session service is required.
+
+## How It Works
+
+### Registration & Login
+
+1. User submits email + password via a Server Action in `app/(login)/actions.ts`.
+2. Password is hashed with bcryptjs (cost factor 10).
+3. A JWT is signed with `AUTH_SECRET` and set as an httpOnly cookie named `session`.
+4. Subsequent requests include the cookie automatically.
+
+### Session Validation
+
+The middleware at `middleware.ts` reads and verifies the JWT on every request. Protected routes redirect to `/sign-in` when the session is missing or invalid.
+
+### Token Refresh
+
+Sessions are short-lived. The middleware refreshes the token on each request, sliding the expiry window.
+
+## OAuth / Social Login
+
+Google and GitHub OAuth is supported via the **arctic** library.
+
+### Configuration
+
+Add these variables to `.env`:
+
+```env
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+```
+
+### OAuth Flow
+
+```
+User clicks "Sign in with Google"
+  → GET /api/auth/oauth/google
+  → Redirect to Google consent screen
+  → Google redirects to /api/auth/oauth/google/callback
+  → Account linked, session created
+  → Redirect to /dashboard
+```
+
+OAuth accounts are stored in the `oauthAccounts` table (`lib/db/oauth-schema.ts`).
+
+## Two-Factor Authentication (2FA)
+
+TOTP-based 2FA is available. Users can enable it from **Dashboard → Security**.
+
+### Setup
+
+1. Navigate to **Dashboard → Security → Two-Factor Authentication**.
+2. Scan the QR code with an authenticator app (Google Authenticator, Authy, etc.).
+3. Enter the 6-digit code to verify and enable.
+
+### API
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/auth/2fa/setup` | POST | Generate TOTP secret & QR code |
+| `/api/auth/2fa/verify` | POST | Verify code and enable 2FA |
+| `/api/auth/2fa/disable` | POST | Disable 2FA |
+
+## Password Reset
+
+Users who forget their password can request a reset link via email.
+
+### Flow
+
+1. User visits `/forgot-password` and submits their email.
+2. A reset token is sent to their inbox (via Resend).
+3. User clicks the link, visits `/reset-password`, and sets a new password.
+
+### Configuration
+
+Set `RESEND_API_KEY` in `.env` to enable transactional emails.
+
+## Team Management
+
+Every user belongs to a **team** (created automatically on sign-up). Team members can be invited via email. Roles are:
+
+| Role | Permissions |
+|---|---|
+| `owner` | Full access including billing and member management |
+| `member` | Standard dashboard access |
+
+## RBAC (Role-Based Access Control)
+
+Fine-grained permissions are managed via the RBAC module in `lib/rbac/`. See the admin panel under **Roles** to configure custom roles and permissions.
+
+## Extending Auth
+
+To add a new protected route, ensure it falls under the middleware matcher pattern in `middleware.ts`. To add custom claims to the JWT, modify `lib/auth/session.ts`.

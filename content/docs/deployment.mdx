@@ -1,0 +1,176 @@
+---
+title: Deployment
+description: Deploy to Vercel or Docker — production deployment guide
+order: 5
+---
+
+# Deployment
+
+The starter kit supports two deployment targets out of the box: **Vercel** (recommended) and **Docker** (self-hosted).
+
+## Vercel (Recommended)
+
+### 1. Push to GitHub
+
+```bash
+git remote add origin https://github.com/your-org/saas-starter-enhanced.git
+git push -u origin main
+```
+
+### 2. Import on Vercel
+
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import your GitHub repository
+3. Vercel auto-detects Next.js — no framework configuration needed
+
+### 3. Configure Environment Variables
+
+In the Vercel dashboard under **Settings → Environment Variables**, add all variables from your `.env` file.
+
+Critical variables:
+
+```env
+POSTGRES_URL=postgresql://...
+AUTH_SECRET=<random-256-bit-string>
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+BASE_URL=https://your-domain.vercel.app
+```
+
+### 4. Set Up Stripe Webhooks
+
+In the Stripe Dashboard, create a webhook endpoint:
+
+```
+https://your-domain.vercel.app/api/stripe/webhook
+```
+
+Select these events:
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `checkout.session.completed`
+
+Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+### 5. Run Database Migrations
+
+Vercel runs migrations on build via the build command. Ensure your `package.json` build script includes:
+
+```json
+{
+  "scripts": {
+    "build": "next build"
+  }
+}
+```
+
+Or run migrations manually:
+
+```bash
+npx vercel env pull .env.local
+pnpm db:setup
+```
+
+### Vercel Configuration
+
+The project includes `vercel.json` with optimal settings:
+
+```json
+{
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/**": { "maxDuration": 30 }
+  }
+}
+```
+
+## Docker (Self-Hosted)
+
+### 1. Build the Docker Image
+
+```bash
+docker build -t saas-starter .
+```
+
+### 2. Environment Variables
+
+Create a `.env.production` file with all required variables, then run:
+
+```bash
+docker run -d \
+  --name saas-app \
+  --env-file .env.production \
+  -p 3000:3000 \
+  saas-starter
+```
+
+### 3. Docker Compose (with PostgreSQL)
+
+The project includes `docker-compose.yml` for running the app + database locally:
+
+```bash
+docker-compose up -d
+```
+
+This starts:
+- `app` — Next.js application on port 3000
+- `db` — PostgreSQL 15 on port 5432
+
+### 4. Reverse Proxy (nginx)
+
+Example nginx configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+Add SSL with Certbot:
+
+```bash
+certbot --nginx -d your-domain.com
+```
+
+## CI/CD
+
+The project includes GitHub Actions workflows in `.github/workflows/`:
+
+| Workflow | Trigger | Actions |
+|---|---|---|
+| `ci.yml` | Push / PR | Type-check, lint, E2E tests |
+
+### Required GitHub Secrets
+
+| Secret | Description |
+|---|---|
+| `POSTGRES_URL` | Test database connection string |
+| `AUTH_SECRET` | JWT secret for tests |
+
+## Health Check
+
+The app exposes a health check endpoint:
+
+```
+GET /api/health
+```
+
+Returns HTTP 200 with `{ "status": "ok" }` when the app and database are reachable.
+
+## Performance Tips
+
+- Enable Vercel Edge Network for static assets
+- Use `POSTGRES_URL` with connection pooling (PgBouncer or Supabase pooler)
+- Set `NEXT_TELEMETRY_DISABLED=1` to opt out of Next.js telemetry
+- Enable ISR (Incremental Static Regeneration) for public pages
